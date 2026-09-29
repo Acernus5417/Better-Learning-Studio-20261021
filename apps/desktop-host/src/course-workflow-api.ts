@@ -20,7 +20,7 @@ import { CourseTranscriptionBatchService } from './course-transcription-batch.ts
 import { CourseVisionProbeService } from './course-vision-probe.ts'
 import { recoverStoppedCourseAttempts } from './course-transcription-recovery.ts'
 import { CourseWatchdogService, type CourseWatchdogPolicy } from './course-watchdog-service.ts'
-import { importCourseAttachments } from './course-attachments.ts'
+import { importCourseAttachments, refreshCourseInventory } from './course-attachments.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -296,6 +296,13 @@ export async function installCourseWorkflowApi(
           available: Object.keys(COURSE_GUIDES) }
         return readCourseGuide(scripts, section)
       }
+      case 'refresh-inventory': {
+        const state = await cursor.inspect()
+        if (state?.stage !== 'materials' || !['ready', 'running'].includes(state.status)) {
+          throw new Error('course workflow: inventory can be refreshed only during the materials stage')
+        }
+        return refreshCourseInventory(course, await runtime())
+      }
       case 'run-step': {
         const state = await cursor.inspect()
         if (state?.status !== 'running' || state.stage === 'complete'
@@ -450,10 +457,10 @@ export async function installCourseWorkflowApi(
   })
   ctx.tools.register(defineTool({
     name: 'course_workflow',
-    description: 'Inspect or advance the application-owned Better Learning course workflow. create-course imports attachments from its direct human turn. import-attachments adds files from the current direct human turn during the materials stage and inventories actual saved files. Use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, prepare-transcription creates the unit ledger, probe verifies the current model with a fresh image-reading child, transcribe-batch runs one whole isolated child batch, and assemble-transcription merges completed sources. run-step executes whitelisted mechanical commands only in their matching stage. Complete each stage only after saved artifacts pass validation.',
+    description: 'Inspect or advance the application-owned Better Learning course workflow. create-course imports attachments from its direct human turn. import-attachments adds files from the current direct human turn during the materials stage; refresh-inventory retries inventory of already saved sources after an interruption. Use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, prepare-transcription creates the unit ledger, probe verifies the current model with a fresh image-reading child, transcribe-batch runs one whole isolated child batch, and assemble-transcription merges completed sources. run-step executes whitelisted mechanical commands only in their matching stage. Complete each stage only after saved artifacts pass validation.',
     parameters: {
       action: { type: 'string', required: true,
-        enum: ['inspect', 'guide', 'create-course', 'initialize', 'import-attachments', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
+        enum: ['inspect', 'guide', 'create-course', 'initialize', 'import-attachments', 'refresh-inventory', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
       course: { type: 'string', description: 'Current Session course directory (.) or one direct child of its registered workspace. For create-course, a new direct-child name.' },
       section: { type: 'string', description: 'For guide: overview or a named stage reference/template. Omit to list available sections.',
         enum: Object.keys(COURSE_GUIDES) },
@@ -484,9 +491,18 @@ export async function installCourseWorkflowApi(
         const initialization = await perform(created, 'initialize')
         // oxlint-disable-next-line typescript/no-deprecated -- Current Session log authority read.
         const message = agent.session.snapshotEvents()[humanSeq]
-        const imported = message?.type === 'user/message'
-          ? await importCourseAttachments(created, message.data.content, ctx.attachments, await runtime(), cwd) : null
-        return { result: JSON.stringify({ course: args.course, initialization, imported }) }
+        try {
+          const imported = message?.type === 'user/message'
+            ? await importCourseAttachments(created, message.data.content, ctx.attachments, await runtime(), cwd) : null
+          return { result: JSON.stringify({ course: args.course, initialization, imported }) }
+        } catch (error) {
+          // Course creation has already committed. Return its identity so a
+          // retry cannot accidentally create a second course.
+          return { result: JSON.stringify({
+            course: args.course, initialization, importError: error instanceof Error ? error.message : String(error),
+            recovery: 'Use import-attachments in this human turn, or refresh-inventory if the source ledger was saved.',
+          }) }
+        }
       }
       const course = await resolveAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course ?? '.')
       if (args.action === 'import-attachments') {

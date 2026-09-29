@@ -101,3 +101,11 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 **仍需继续**：① 审核当前 `course-attachments.ts` 的多次导入及失败恢复，特别是创建目录成功但导入中途失败时的重试入口；为本轮用户消息中多个附件／文件夹及大目录检查成本与状态展示。② 在隔离新 Electron 会话用最小 PDF＋PPTX＋DOCX 实际调用 `create-course`、导入、`propose`、下一回合 `confirm`，观察 UI 附件可预览和文件夹芯片；不要读取完整课程产物。③ 在同一隔离课程运行真实视觉探针、独立子代理批次及 watchdog 停止／恢复，继续知识、路径、讲义、卡片到 packaged 收据；只在必要时调用用户配置的模型并记录实际用量。④ 恢复时避免动原用户课程和当前运行窗口。开发版 `start.bat` 带 `-SkipBuild`；本轮 Web 已构建，但旧窗口要重新启动才加载新 Host。
 
 本节代码检查点提交为 `a63c8a8 feat: inventory course materials from admitted chat input`。续做前先运行 `git status --short` 与 `git log -1 --oneline`。2026-09-29 此次记录时 Codex 五小时额度约用 29%，周额度约用 95%；应优先保留本交接信息再做大规模验收。
+
+## 2026-09-29 续作：盘点中断恢复与隔离启动
+
+新增 `course_workflow refresh-inventory`，在资料阶段从持久 `附件导入.json` 读取已导入文件／文件夹，校验文件哈希、字节数、路径仍位于课程来源区，以及文件夹可用且不包含输出课程，然后重跑盘点。测试模拟脚本第一次失败、第二次无需重新上传即成功。`create-course` 若已经建好课程但附件导入失败，会返回课程名、错误与恢复提示，避免误以为整个创建动作可安全重做。同一用户回合可调用 `import-attachments`，已保存来源清单时可调用 `refresh-inventory`。若宿主恰好在来源清单落盘之前退出，并且用户回合已经结束，仍可能需要重新附加资料；这是下一个恢复边界。
+
+Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown 通过。使用此前隔离配置启动新 Electron：进程存活且 19388 端口监听；测试后该隔离进程与端口都已关闭，原用户窗口未动。stderr 有 `dsh-desktop:mandatory-status` “No handler registered” 一条；目前未做图形界面交互检查，不能判断影响。没有调用课程模型 API。
+
+**后续优先级**：先在隔离窗口核对该 IPC 错误与底部输入／附件交互，并用一个小型混合 PDF＋PPTX＋DOCX 在真实模型会话验证 `create-course`、资料清单、聊天归纳与后续回合确认；再跑视觉探针、独立子代理批次、强制中断后 `resume`，最后完成知识、讲义、卡片与 packaged。用户配置的模型凭据在应用内，勿输出凭据；记录实际 token 用量和失败点，避免重复生成已通过阶段。当前周额度接近上限；停下前确认 Git 提交和工作区干净。

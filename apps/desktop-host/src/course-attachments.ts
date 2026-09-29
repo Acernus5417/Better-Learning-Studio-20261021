@@ -109,6 +109,35 @@ async function verifiedExisting(path: string, digest: string, bytes: number): Pr
   }
 }
 
+/** Re-run inventory from the persisted, validated source ledger after interruption. */
+export async function refreshCourseInventory(
+  course: string, runtime: CourseVerifierRuntime,
+): Promise<{ sources: number }> {
+  const sourceRoot = join(course, '原始资料')
+  const ledger = await ledgerAt(join(course, '_工作区', '附件导入.json'))
+  const paths: string[] = []
+  if (ledger.entries.length > 0
+    && relative(await realpath(course), await realpath(sourceRoot)) !== '原始资料') {
+    throw new Error('course attachments: source directory resolves outside the course')
+  }
+  for (const entry of ledger.entries) {
+    if (resolve(entry.path) !== entry.path || !withinSource(sourceRoot, entry.path)
+      || await realpath(entry.path) !== entry.path
+      || !await verifiedExisting(entry.path, digestFromId(entry.id), entry.bytes)) {
+      throw new Error('course attachments: registered source failed integrity verification')
+    }
+    paths.push(entry.path)
+  }
+  for (const folder of ledger.folders) {
+    if (resolve(folder) !== folder || await realpath(folder) !== folder || !(await stat(folder)).isDirectory()
+      || folder === course || withinSource(folder, course)) {
+      throw new Error('course attachments: registered folder is unavailable or contains the output course')
+    }
+    paths.push(folder)
+  }
+  return runCourseInventory(runtime, course, paths)
+}
+
 /**
  * Import admitted files/images into the course's immutable source area, then
  * inventory exactly the registered imported paths. Never trust a model path.
@@ -178,15 +207,7 @@ export async function importCourseAttachments(
       imported.push(path)
     }
   }
-  for (const entry of entries) {
-    if (resolve(entry.path) !== entry.path || !withinSource(sourceRoot, entry.path)
-      || !await verifiedExisting(entry.path, digestFromId(entry.id), entry.bytes)) {
-      throw new Error('course attachments: registered source failed integrity verification')
-    }
-  }
   await saveLedger(ledgerPath, { schemaVersion: 1, entries, folders: [...folders] })
-  const result = await runCourseInventory(runtime, course, [
-    ...entries.map(entry => entry.path), ...folders,
-  ])
+  const result = await refreshCourseInventory(course, runtime)
   return { imported, folders: [...folders], sources: result.sources }
 }

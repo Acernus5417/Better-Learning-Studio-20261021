@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { humanFolderMentions, importCourseAttachments } from '../src/course-attachments.ts'
+import { humanFolderMentions, importCourseAttachments, refreshCourseInventory } from '../src/course-attachments.ts'
 import { runCourseInventory } from '../src/course-stage-verifier.ts'
 
 vi.mock('../src/course-stage-verifier.ts', () => ({
@@ -81,4 +81,19 @@ it('rejects a changed imported source before refreshing the inventory', async ()
   await expect(importCourseAttachments(course, content as never, store as never, {} as never))
     .rejects.toThrow('changed or disappeared')
   expect(vi.mocked(runCourseInventory)).toHaveBeenCalledTimes(1)
+})
+
+it('retries inventory from the saved ledger after a script failure without reuploading', async () => {
+  const course = await mkdtemp(join(tmpdir(), 'bls-attachments-'))
+  roots.push(course)
+  const data = Buffer.from('saved material')
+  const attachment = ref('material.txt', data)
+  const content = [{ type: 'file', attachment }]
+  const store = { async *readFileStream() { yield data } }
+  vi.mocked(runCourseInventory).mockRejectedValueOnce(new Error('temporary inventory failure'))
+  await expect(importCourseAttachments(course, content as never, store as never, {} as never))
+    .rejects.toThrow('temporary inventory failure')
+  const retried = await refreshCourseInventory(course, {} as never)
+  expect(retried.sources).toBe(1)
+  expect(vi.mocked(runCourseInventory).mock.calls[1]?.[2]).toHaveLength(1)
 })
