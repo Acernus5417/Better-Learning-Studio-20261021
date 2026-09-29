@@ -135,3 +135,13 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 应用以当前 bundle 重启，旧课程和侧栏会话保留；“我的课程”下新建了空的验收会话，预设为 `better-learning`。从模型菜单选择 DSH 官方目录 `DeepSeek-V41-Flash`（源码 `packages/llm/llm-deepseek/src/models.ts` 映射为 `deepseek-flash`、声明 text+image）；原会话使用的 `Deepseek-V4.1-Flash` 是另一个 work 目录项，先前真实视觉探针曾失败，两个条目切勿混淆。加号菜单实际有“文件”和“文件夹”。原生文件对话框已关闭，未选入资料；**没有发送新消息、没有 API 调用**。桌面自动操作收到“user input was detected in this window”后停止触碰该窗口，避免和用户手动操作相冲突。当前主进程由前台诊断启动的 `start-studio.ps1 -SkipBuild` 维持；无需为下面的本地测试关闭。
 
 下一步可先在隔离 profile/测试框架中完成小型混合资料的原生附件和流程验证；若再操控原用户窗口，先确认用户没有正在操作。可用 `.desktop-cache/mixed-course/附件/` 里的 `lesson.pdf`、`simple-slides.pptx`、`lesson.docx` 三个小文件，不必读取旧大型课程产物。用户明确要求注意 API token，用 DSH 会话用量记录实际消耗。完整迁移版端到端、真实 probe/视觉成员、watchdog 强制中断及 packaged 尚未验收。
+
+## 2026-09-30 混合 Office 视觉准备修复
+
+用隔离目录 `.desktop-cache/native-mixed-script-20260929` 的小型 PDF＋PPTX＋DOCX 资料运行随包 Python：来源盘点 3 份成功，但原本 `convert_materials.py prepare` 把 DOCX 原生图形单元 `SRC-001/U00004` 标为 blocked，原因是没有注册整页 PNG 映射。脚本进程返回 0 不代表单元无阻塞，应看 `_工作区/转写任务.json` 的 processing_route 和 counts。
+
+现在新增 `office_render_requirements.py`，复用提取器的原生视觉特征检测，列出须整页覆盖的 Office part 及 PPTX 实际幻灯片顺序。Host 的 `prepare-transcription` 先调用应用捆绑的 LibreOffice Kit CLI 渲染 DOCX/PPTX 全页，在宿主而非 Agent 沙箱执行；校验 manifest 来源哈希、页数、每页 PNG 路径／大小／签名，再以原子文件写 `_工作区/office渲染映射.json` 并传给 `convert_materials.py prepare`。`_工作区/office渲染报告.json` 保存页数和缺失字体。完整渲染按来源哈希缓存，应用退出后可复用；残缺或被改动的图片不会复用，重试会另建渲染目录及映射。
+
+实测同一组三份资料 prepare 后 7 单元：4 deterministic_text、3 vision、0 blocked，CLI 输出 counts 为 done 4、pending 3、failed 0。二次运行渲染目录数不增加且映射哈希不变；故意增改缓存 PNG 一字节后，下一次运行新增完整渲染目录并重新映射。该测试资料报告缺 `Courier` 字体，需在真实 UI 的异常摘要中如实呈现。Host `tsc -b`、`tsdown`、聚焦 oxlint 与 8 个相关 Vitest 文件 24 项通过（2 项环境跳过）；未调用模型 API，用户原窗口未触碰。
+
+下一步仍是迁移版真实端到端：在用户不操作窗口时，用应用界面或隔离配置完成直接附件发送、跨用户回合目标确认，随后当前实际多模态模型做视觉探针及一批成员，核验 watchdog 与强制中断后的 `resume`，最终生成 packaged 收据。注意 token 用量和缓存口径；不要为检查而读取整门旧课程正文。当前源码变更尚需提交；提交后以 `git status --short` 确认工作区干净。

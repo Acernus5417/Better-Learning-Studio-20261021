@@ -21,6 +21,7 @@ import { CourseVisionProbeService } from './course-vision-probe.ts'
 import { recoverStoppedCourseAttempts } from './course-transcription-recovery.ts'
 import { CourseWatchdogService, type CourseWatchdogPolicy } from './course-watchdog-service.ts'
 import { importCourseAttachments, refreshCourseInventory } from './course-attachments.ts'
+import { prepareOfficeRenders } from './course-office-renders.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -205,6 +206,7 @@ export async function discoverSavedCourses(
 /** Install the course API after the Desktop profile and Connection are ready. */
 export async function installCourseWorkflowApi(
   ctx: Context, source: string, installRoot: string, scripts: string, watchdogPolicy: CourseWatchdogPolicy,
+  office?: { node: string; cli: string },
 ): Promise<void> {
   if (!isAbsolute(source) || !isAbsolute(installRoot) || !isAbsolute(scripts)) {
     throw new Error('course workflow: runtime paths must be absolute')
@@ -216,7 +218,8 @@ export async function installCourseWorkflowApi(
   }
   let runtimePromise: Promise<CourseVerifierRuntime> | undefined
   const runtime = (): Promise<CourseVerifierRuntime> => runtimePromise ??= installPrimaryRuntime(source, installRoot)
-    .then(paths => ({ python: paths.python, scripts }))
+    .then(paths => ({ python: paths.python, scripts,
+      ...(office === undefined ? {} : { officeNode: office.node, officeCli: office.cli }) }))
     .catch((error: unknown) => { runtimePromise = undefined; throw error })
   const workflows = new Map<string, CourseWorkflow>()
   const watchdogs = new CourseWatchdogService(ctx, watchdogPolicy)
@@ -378,6 +381,13 @@ export async function installCourseWorkflowApi(
         }
         const command = action === 'prepare-transcription' ? 'prepare'
           : action === 'assemble-transcription' ? 'assemble' : 'diagnose'
+        if (action === 'prepare-transcription') {
+          const installed = await runtime()
+          const officeResult = await prepareOfficeRenders(installed, course)
+          const result = await runCourseMaterials(installed, course,
+            ['prepare', '--office-renders', officeResult.mapping])
+          return { ...result, office: officeResult.reports }
+        }
         return runCourseMaterials(await runtime(), course, [command])
       }
       case 'probe': {

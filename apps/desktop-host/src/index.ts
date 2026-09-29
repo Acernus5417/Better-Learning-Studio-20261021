@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import * as desktopOffice from './office.ts'
+import { bundledOfficePaths } from './office.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
@@ -115,11 +116,12 @@ async function main(): Promise<void> {
   })
   const workflowRoot = process.env.BLS_WORKFLOW_ROOT
   if (workflowRoot !== undefined) {
-    await installCourseWorkflowApi(ctx, process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime'),
+    const source = process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime')
+    await installCourseWorkflowApi(ctx, source,
       join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'), join(workflowRoot, 'scripts'), {
         intervalMs: positiveMilliseconds('BLS_WATCHDOG_INTERVAL_MS', 90_000),
         silentMs: positiveMilliseconds('BLS_WATCHDOG_SILENT_MS', 900_000),
-      })
+      }, bundledOfficePaths(source, runtimeDir))
   }
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })

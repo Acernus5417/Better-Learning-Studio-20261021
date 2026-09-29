@@ -14,6 +14,8 @@ const execute = promisify(execFile)
 export interface CourseVerifierRuntime {
   readonly python: string
   readonly scripts: string
+  readonly officeNode?: string
+  readonly officeCli?: string
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -50,6 +52,7 @@ function scriptEnvironment(): NodeJS.ProcessEnv {
 
 type CourseScript = 'convert_materials.py' | 'assemble_knowledge.py' | 'lesson_tasks.py'
   | 'core_cards.py' | 'obsidian_links.py' | 'validate_package.py' | 'inventory_materials.py'
+  | 'office_render_requirements.py'
 
 /** Run one application-owned mechanical command without exposing process credentials. */
 export async function runCourseScript(

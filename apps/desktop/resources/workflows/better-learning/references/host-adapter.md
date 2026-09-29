@@ -22,7 +22,7 @@ Better Learning Studio 使用 DSH 自身的 `subagent`（`provider: spawn`、`ba
 
 桌面宿主提供 `load_workspace_dependencies`，主代理先从该工具取得随应用捆绑的 Python 绝对路径，再用它执行脚本。视觉探针、转写批次和主代理写作都使用桌面设置中的同一个模型路由；换模型后必须重新运行探针。Windows 看门狗以 `pwsh` 的 `Start-Process -WindowStyle Hidden` 启动捆绑的 `pythonw.exe`。
 
-混合资料中的 PPTX、DOCX 需要整页视觉覆盖时，用 DSH 的 `skill` 加载内置 `office-pptx`、`office-docx`，从返回的 **Installed LibreOffice Kit** 取得 `libreofficeKit.node` 与 `libreofficeKit.cli` 绝对路径。以 `& <node> <cli> render --input <原件> --output-dir <新目录> --dpi 144` 导出全部页面，核对 manifest 的页码与缺失字体提示，再按 [图像流程](image-first.md)登记 `--office-renders` 映射。PDF 原件由 `extract_materials.py` 使用随附的 `pypdfium2` 渲染。不得把文本提取当作完整视觉覆盖。
+混合资料中的 PPTX、DOCX 需要整页视觉覆盖时，应用内置 `prepare-transcription` 使用捆绑的 LibreOffice Kit 导出全部页面，核对 manifest 的页码和图片，并记录缺失字体，再登记 `--office-renders` 映射。PDF 原件由 `extract_materials.py` 使用随附的 `pypdfium2` 渲染。不得把文本提取当作完整视觉覆盖。
 
 ```text
 python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE dispatch \

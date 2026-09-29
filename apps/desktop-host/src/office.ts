@@ -20,6 +20,17 @@ export interface Config {
   readonly runtimeDir: string
 }
 
+/** Physical standalone Office paths shared by skills and the built-in course workflow. */
+export function bundledOfficePaths(source: string, runtimeDir: string): { node: string; cli: string } {
+  const archive = runtimeArchivePath(runtimeDir) === undefined ? undefined : dirname(realpathSync(runtimeDir))
+  const manifest = fileURLToPath(import.meta.resolve('@deepseek-ai/libreoffice-kit/package.json'))
+  const packageRoot = dirname(archive === undefined ? manifest : join(`${archive}.unpacked`, relative(archive, manifest)))
+  return {
+    node: join(source, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node'),
+    cli: join(packageRoot, 'lib', 'cli.js'),
+  }
+}
+
 /**
  * Enable offline Office authoring and structural checks in the Desktop profile.
  * @param ctx - Profile scope; child plugins declare their own service requirements.
@@ -27,12 +38,10 @@ export interface Config {
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   await ctx.plugin(workspaceDependencies, config)
-  const archive = runtimeArchivePath(config.runtimeDir) === undefined ? undefined : dirname(realpathSync(config.runtimeDir))
-  const manifest = fileURLToPath(import.meta.resolve('@deepseek-ai/libreoffice-kit/package.json'))
-  const packageRoot = dirname(archive === undefined ? manifest : join(`${archive}.unpacked`, relative(archive, manifest)))
+  const office = bundledOfficePaths(config.source, config.runtimeDir)
   await ctx.plugin(officeSkills, {
     assetRoot: join(dirname(config.source), 'office-skills'),
-    node: join(config.source, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node'),
-    cli: join(packageRoot, 'lib', 'cli.js'),
+    node: office.node,
+    cli: office.cli,
   })
 }

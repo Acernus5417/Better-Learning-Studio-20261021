@@ -43,7 +43,7 @@ Office chart、SmartArt、组合形状、连接线、矢量几何、浮动图形
 {"SRC-001":{"ppt/slides/slide1.xml":"附件/slide1.png"},"SRC-002":{"word/document.xml":["附件/doc-page1.png","附件/doc-page2.png"]}}
 ```
 
-将映射保存到课程内，并传 `--office-renders 相对路径.json`。DOCX 必须列全该 part 的页面，列表会拆为逐页视觉单元；脚本校验文件与哈希，实际页面覆盖仍需人工/成员核查。映射不能使用裁掉图表的文字截图。也可导出完整 PDF，保留原件与导出对应关系，重新确认资料范围。脚本不承诺在未安装 Office 渲染器的环境自动完成导出。
+应用内置 `prepare-transcription` 会调用随包 Office 渲染器，写入课程内映射，并传 `--office-renders 相对路径.json`。DOCX 会列全该 part 的页面，列表拆为逐页视觉单元；脚本校验文件与哈希，实际页面内容仍需视觉成员核查。映射不能使用裁掉图表的文字截图。渲染失败时保持阻断，向用户说明并取得可读的完整转换版本。
 
 ## 3. 整批派发与整批收口
 
