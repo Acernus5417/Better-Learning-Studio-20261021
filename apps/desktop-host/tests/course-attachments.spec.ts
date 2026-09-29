@@ -97,3 +97,44 @@ it('retries inventory from the saved ledger after a script failure without reupl
   expect(retried.sources).toBe(1)
   expect(vi.mocked(runCourseInventory).mock.calls[1]?.[2]).toHaveLength(1)
 })
+
+it('resumes a partly copied human attachment batch after interruption', async () => {
+  const course = await mkdtemp(join(tmpdir(), 'bls-attachments-'))
+  roots.push(course)
+  const files = new Map([
+    ['first.pdf', Buffer.from('first material')],
+    ['second.docx', Buffer.from('second material')],
+  ])
+  const content = [...files].map(([name, data]) => ({ type: 'file', attachment: ref(name, data) }))
+  const reads = new Map<string, number>()
+  const store = {
+    async *readFileStream(attachment: { name: string }) {
+      const count = (reads.get(attachment.name) ?? 0) + 1
+      reads.set(attachment.name, count)
+      if (attachment.name === 'second.docx' && count === 1) throw new Error('stream interrupted')
+      yield files.get(attachment.name)!
+    },
+  }
+  await expect(importCourseAttachments(course, content as never, store as never, {} as never))
+    .rejects.toThrow('stream interrupted')
+  const ledgerPath = join(course, '_工作区', '附件导入.json')
+  const interrupted = JSON.parse(await readFile(ledgerPath, 'utf8')) as {
+    pending?: { refs: unknown[] }
+    entries: unknown[]
+  }
+  expect(interrupted.pending?.refs).toHaveLength(2)
+  expect(interrupted.entries).toHaveLength(0)
+  expect(vi.mocked(runCourseInventory)).not.toHaveBeenCalled()
+
+  await expect(refreshCourseInventory(course, {} as never, store as never)).resolves.toEqual({ sources: 2 })
+  const resumed = JSON.parse(await readFile(ledgerPath, 'utf8')) as {
+    pending?: unknown
+    entries: { path: string }[]
+  }
+  expect(resumed.pending).toBeUndefined()
+  expect(resumed.entries).toHaveLength(2)
+  expect(reads.get('first.pdf')).toBe(1)
+  expect(reads.get('second.docx')).toBe(2)
+  expect(await Promise.all(resumed.entries.map(entry => readFile(entry.path))))
+    .toEqual([...files.values()])
+})

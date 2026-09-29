@@ -18,10 +18,21 @@ interface ImportedAttachment {
   readonly bytes: number
 }
 
+type PendingAttachment =
+  | { readonly kind: 'file'; readonly attachment: FileAttachmentRef }
+  | { readonly kind: 'image'; readonly attachment: ImageAttachmentRef }
+
+interface PendingImport {
+  readonly refs: readonly PendingAttachment[]
+  readonly folders: readonly string[]
+}
+
 interface ImportLedger {
   readonly schemaVersion: 1
   readonly entries: readonly ImportedAttachment[]
   readonly folders: readonly string[]
+  /** Saved before source publication, so a crash can replay admitted refs. */
+  readonly pending?: PendingImport
 }
 
 function digestFromId(id: string): string {
@@ -54,6 +65,16 @@ async function ledgerAt(path: string): Promise<ImportLedger> {
       || value.schemaVersion !== 1 || !('entries' in value) || !Array.isArray(value.entries)
       || !('folders' in value) || !Array.isArray(value.folders)
       || !value.folders.every((folder: unknown) => typeof folder === 'string')
+      || ('pending' in value && (typeof value.pending !== 'object' || value.pending === null
+        || !('refs' in value.pending) || !Array.isArray(value.pending.refs)
+        || !value.pending.refs.every((item: unknown) => typeof item === 'object' && item !== null
+          && 'kind' in item && (item.kind === 'file' || item.kind === 'image')
+          && 'attachment' in item && typeof item.attachment === 'object' && item.attachment !== null
+          && 'attachmentId' in item.attachment && typeof item.attachment.attachmentId === 'string'
+          && 'bytes' in item.attachment && Number.isSafeInteger(item.attachment.bytes)
+          && (item.attachment.bytes as number) >= 0)
+        || !('folders' in value.pending) || !Array.isArray(value.pending.folders)
+        || !value.pending.folders.every((folder: unknown) => typeof folder === 'string')))
       || !value.entries.every((entry: unknown) => typeof entry === 'object' && entry !== null
         && 'id' in entry && typeof entry.id === 'string'
         && 'path' in entry && typeof entry.path === 'string'
@@ -109,16 +130,70 @@ async function verifiedExisting(path: string, digest: string, bytes: number): Pr
   }
 }
 
+async function finishPendingImport(
+  sourceRoot: string, ledgerPath: string, ledger: ImportLedger, attachments: AttachmentStore,
+): Promise<{ ledger: ImportLedger; imported: string[] }> {
+  const pending = ledger.pending
+  if (pending === undefined) return { ledger, imported: [] }
+  const entries = [...ledger.entries]
+  const imported: string[] = []
+  for (const item of pending.refs) {
+    const ref = item.attachment
+    const id = String(ref.attachmentId)
+    const digest = digestFromId(id)
+    const existing = entries.find(entry => entry.id === id)
+    const path = existing?.path ?? join(sourceRoot, filename(ref.name, digest, item.kind === 'image'))
+    if (resolve(path) !== path || !withinSource(sourceRoot, path)) {
+      throw new Error('course attachments: import ledger path escapes source directory')
+    }
+    if (!await verifiedExisting(path, digest, ref.bytes)) {
+      if (existing !== undefined) throw new Error('course attachments: an imported source changed or disappeared')
+      const temporary = join(sourceRoot, `.import-${randomUUID()}.tmp`)
+      try {
+        if (item.kind === 'file') {
+          await pipeline(Readable.from(attachments.readFileStream(item.attachment)),
+            createWriteStream(temporary, { flags: 'wx' }))
+        } else {
+          const stored = await attachments.readImage(item.attachment)
+          await writeFile(temporary, stored.data, { flag: 'wx' })
+        }
+        if (!await verifiedExisting(temporary, digest, ref.bytes)) {
+          throw new Error('course attachments: imported content failed integrity verification')
+        }
+        try { await link(temporary, path) }
+        catch (error) {
+          if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
+            && await verifiedExisting(path, digest, ref.bytes))) throw error
+        }
+      } finally {
+        await rm(temporary, { force: true })
+      }
+    }
+    if (existing === undefined) {
+      entries.push({ id, name: ref.name ?? (item.kind === 'image' ? 'image.png' : 'file'), path, bytes: ref.bytes })
+      imported.push(path)
+    }
+  }
+  const completed: ImportLedger = { schemaVersion: 1, entries, folders: pending.folders }
+  await saveLedger(ledgerPath, completed)
+  return { ledger: completed, imported }
+}
+
 /** Re-run inventory from the persisted, validated source ledger after interruption. */
 export async function refreshCourseInventory(
-  course: string, runtime: CourseVerifierRuntime,
+  course: string, runtime: CourseVerifierRuntime, attachments?: AttachmentStore,
 ): Promise<{ sources: number }> {
   const sourceRoot = join(course, '原始资料')
-  const ledger = await ledgerAt(join(course, '_工作区', '附件导入.json'))
+  const ledgerPath = join(course, '_工作区', '附件导入.json')
+  let ledger = await ledgerAt(ledgerPath)
   const paths: string[] = []
-  if (ledger.entries.length > 0
+  if ((ledger.entries.length > 0 || ledger.pending !== undefined)
     && relative(await realpath(course), await realpath(sourceRoot)) !== '原始资料') {
     throw new Error('course attachments: source directory resolves outside the course')
+  }
+  if (ledger.pending !== undefined) {
+    if (attachments === undefined) throw new Error('course attachments: attachment store is required to resume pending import')
+    ledger = (await finishPendingImport(sourceRoot, ledgerPath, ledger, attachments)).ledger
   }
   for (const entry of ledger.entries) {
     if (resolve(entry.path) !== entry.path || !withinSource(sourceRoot, entry.path)
@@ -158,9 +233,8 @@ export async function importCourseAttachments(
   }
   await mkdir(join(course, '_工作区'), { recursive: true })
   const previous = await ledgerAt(ledgerPath)
-  const entries = [...previous.entries]
-  const folders = new Set(previous.folders)
-  const imported: string[] = []
+  const resumed = await finishPendingImport(sourceRoot, ledgerPath, previous, attachments)
+  const folders = new Set(resumed.ledger.folders)
   for (const folder of mentionedFolders) {
     const directory = await realpath(folder)
     if (!(await stat(directory)).isDirectory()) throw new Error('course attachments: referenced folder is not a directory')
@@ -170,44 +244,16 @@ export async function importCourseAttachments(
     }
     folders.add(directory)
   }
-  for (const block of refs) {
-    const ref: FileAttachmentRef | ImageAttachmentRef = block.attachment
-    const id = String(ref.attachmentId)
-    const digest = digestFromId(id)
-    const existing = entries.find(entry => entry.id === id)
-    const path = existing?.path ?? join(sourceRoot, filename(ref.name, digest, block.type === 'image'))
-    if (resolve(path) !== path || !withinSource(sourceRoot, path)) {
-      throw new Error('course attachments: import ledger path escapes source directory')
-    }
-    if (!await verifiedExisting(path, digest, ref.bytes)) {
-      if (existing !== undefined) throw new Error('course attachments: an imported source changed or disappeared')
-      const temporary = join(sourceRoot, `.import-${randomUUID()}.tmp`)
-      try {
-        if (block.type === 'file') {
-          await pipeline(Readable.from(attachments.readFileStream(block.attachment)),
-            createWriteStream(temporary, { flags: 'wx' }))
-        } else {
-          const stored = await attachments.readImage(block.attachment)
-          await writeFile(temporary, stored.data, { flag: 'wx' })
-        }
-        if (!await verifiedExisting(temporary, digest, ref.bytes)) {
-          throw new Error('course attachments: imported content failed integrity verification')
-        }
-        try { await link(temporary, path) }
-        catch (error) {
-          if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
-            && await verifiedExisting(path, digest, ref.bytes))) throw error
-        }
-      } finally {
-        await rm(temporary, { force: true })
-      }
-    }
-    if (existing === undefined) {
-      entries.push({ id, name: ref.name ?? (block.type === 'image' ? 'image.png' : 'file'), path, bytes: ref.bytes })
-      imported.push(path)
-    }
+  const pending: PendingImport = {
+    refs: refs.map(block => block.type === 'file'
+      ? { kind: 'file', attachment: block.attachment }
+      : { kind: 'image', attachment: block.attachment }),
+    folders: [...folders],
   }
-  await saveLedger(ledgerPath, { schemaVersion: 1, entries, folders: [...folders] })
-  const result = await refreshCourseInventory(course, runtime)
-  return { imported, folders: [...folders], sources: result.sources }
+  for (const item of pending.refs) digestFromId(String(item.attachment.attachmentId))
+  await saveLedger(ledgerPath, { ...resumed.ledger, pending })
+  const completed = await finishPendingImport(sourceRoot, ledgerPath,
+    { ...resumed.ledger, pending }, attachments)
+  const result = await refreshCourseInventory(course, runtime, attachments)
+  return { imported: [...resumed.imported, ...completed.imported], folders: pending.folders, sources: result.sources }
 }

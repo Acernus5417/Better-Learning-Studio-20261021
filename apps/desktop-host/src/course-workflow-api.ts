@@ -301,7 +301,7 @@ export async function installCourseWorkflowApi(
         if (state?.stage !== 'materials' || !['ready', 'running'].includes(state.status)) {
           throw new Error('course workflow: inventory can be refreshed only during the materials stage')
         }
-        return refreshCourseInventory(course, await runtime())
+        return refreshCourseInventory(course, await runtime(), ctx.attachments)
       }
       case 'run-step': {
         const state = await cursor.inspect()
