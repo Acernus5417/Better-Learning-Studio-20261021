@@ -149,3 +149,5 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 右侧课程状态条随后新增原生游标的“已通过 N/7 阶段”，转写时读取小型 `_工作区/office渲染报告.json` 并显示有缺失字体的来源数。类型检查、聚焦 lint、7 项 UI 测试与 Better Learning 配置下的 Web 构建通过。仅修改状态摘要，不加载课程正文。此批 UI 代码提交前应再检查 Git 状态。
 
 新 Office 全页 PNG 若不加入打包清理，会让最终课程包携带大块缓存。`convert_materials.py` 的 `PURGE` 已加入 `_工作区/office渲染`；映射与字体报告保留为台账。暴露给模型的交付指南和 `runtime-policy.md` 已改为内置 `run-step package-preview/package` 与 `complete-stage` 自动做 packaged 校验，不再要求手动停止旧 `watchdog.py` 或操作跨宿主成员。已打包的旧小课程因知识文件已搬移，无法用它再跑 `package --dry-run`；需在新的未打包真实课程末阶段核对清理预览。
+
+隔离宿主流程脚本 `.desktop-cache/native-flow-smoke.mjs` 使用真实随包 Python/Office Kit 和新 `CourseWorkflow` 在临时课程目录完成 3 份资料的 inventory、plan、初始化／确认、materials 完成凭证、transcription 准备。结果 4 done＋3 pending、0 failed。新 `CourseWorkflow` 实例的 `reconcile` 把模拟中断的 transcription 从 running 改为 needs_review，显式 resume 后才 ready；修改已经通过校验的 DOCX 后又正确退回 materials/needs_review。另一未改源的隔离课程在 3 个视觉单元尚未完成时，`completeStage` 被拒绝。这是宿主与真实脚本的恢复门禁验收，**不是**真实 Agent 视觉读图、子代理真实生命周期或最终 packaged 验收。没有 API 消耗。用户原应用窗口再度报告人工输入检测，自动化未继续触碰。
