@@ -51,3 +51,13 @@
 ## 恢复入口
 
 在仓库 `C:\Users\win11\Documents\ChatGPT\good\better-learning-studio`：先运行 `git status --short`、`git log -1 --oneline`，阅读本文件与 `PROGRESS.md` 最后一条，再检查上述六个 Host 关键文件及现有 composer／Agent 预设。先确定目前是否仍停在本节点，随后从“聊天输入接原生 API”继续。需要恢复基线时使用上面的 Git bundle；勿直接解压含凭据的 profile ZIP 到仓库。
+
+## 2026-09-29 续查：聊天接线位置
+
+本次续查未修改运行代码，也未调用课程模型 API。仓库从 `4a1c64b` 保持干净起步；五小时额度在续查末约用 97%，所以先记录结论：
+
+- 普通聊天发送经过 `packages/client/ui-conversation/src/client/input/hub.ts` 的 `InputHub.sink()`，调用同包 `service.ts` 的 `sendSession()`；后者负责文本与附件的真实 Session admission。不要直接改 composer 编辑器或绕过此处的附件失败恢复语义。
+- Better Learning 定制文件夹入口已在 `packages/client/ui-conversation/src/client/apply.ts`，由 `DSH_CLIENT_BUILD_PROFILE=better-learning` 控制。下一步可在产品专用的发送入口／会话控制层上接原生课程初始化，但应保留 DSH 的 Session 日志和附件 admission；避免原生 API 与聊天各自重复发送、重复落盘。
+- 强制加载 skill 的预设在 `packages/bundle/web-app/presets/standard.patch.yml`：persona 前缀明确要求加载 better-learning；`skill-filesystem` 和 `tool-skill` 也在同一预设。**原生执行器有等价能力之前不要删除这些配置**。
+- 宿主现有控制 API 在 `apps/desktop-host/src/course-workflow-api.ts`，认证路由为 `POST /api/better-learning/workflow`，其 `initialize` 要求课程目录已经存在且属于注册工作区的根目录或直接子目录。目前既无“聊天附件 → 课程目录”创建动作，也无 UI 调用此 API。应先定义由哪个层创建目录、绑定 Session 与课程、持久化用户确认，再连接阶段推进。不要仅在客户端拦截发送后创建空游标。
+- DSH 有模型可调用工具注册模式：`packages/skill/tool-skill/src/index.ts` 使用 `defineTool` 和 `ctx.tools.register`，可作为宿主原生课程操作工具的参考。工具执行可从当前 Agent 的 Session 取得 `cwd`，但应复用宿主的课程边界校验和同一游标实例，避免工具与 HTTP API 各持一份状态。
