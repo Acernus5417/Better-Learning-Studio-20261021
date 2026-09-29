@@ -35,7 +35,7 @@ async function fixture(format: 'docx' | 'pptx', parts: string[], slideOrder: str
   }))
   vi.mocked(runCourseScript).mockResolvedValue({ sources: [{ id: 'SRC-001', path: sourcePath, sha256,
     format, parts, slide_order: slideOrder }] })
-  return { root, images }
+  return { root, images, sourcePath, sha256 }
 }
 
 it('maps every DOCX page and keeps missing font anomalies visible without rerendering', async () => {
@@ -62,4 +62,21 @@ it('uses presentation order for slide mapping and refuses a changed cached PNG',
   await writeFile(images[1]!.path, 'corrupt')
   await expect(prepareOfficeRenders({ python: 'unused', scripts: 'unused' }, root))
     .rejects.toThrow('bundled renderer is unavailable')
+})
+
+it('accepts a source in a registered human folder and rejects an unregistered folder', async () => {
+  const { root, sha256 } = await fixture('docx', ['word/document.xml'], [])
+  const external = await mkdtemp(join(tmpdir(), 'bls-office-folder-'))
+  roots.push(external)
+  const sourcePath = join(external, 'source.docx')
+  await writeFile(sourcePath, 'source')
+  vi.mocked(runCourseScript).mockResolvedValue({ sources: [{ id: 'SRC-001', path: sourcePath, sha256,
+    format: 'docx', parts: ['word/document.xml'], slide_order: [] }] })
+  await expect(prepareOfficeRenders({ python: 'unused', scripts: 'unused' }, root))
+    .rejects.toThrow('outside admitted materials')
+  await writeFile(join(root, '_工作区', '附件导入.json'), JSON.stringify({
+    schemaVersion: 1, entries: [], folders: [external],
+  }))
+  await expect(prepareOfficeRenders({ python: 'unused', scripts: 'unused' }, root))
+    .resolves.toMatchObject({ mapping: '_工作区/office渲染映射.json' })
 })

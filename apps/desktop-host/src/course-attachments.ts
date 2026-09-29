@@ -213,6 +213,28 @@ export async function refreshCourseInventory(
   return runCourseInventory(runtime, course, paths)
 }
 
+/** Resolve source roots admitted by a direct human attachment or folder mention. */
+export async function admittedCourseSourceRoots(course: string): Promise<string[]> {
+  const sourceRoot = join(course, '原始资料')
+  const physicalSourceRoot = await realpath(sourceRoot)
+  if (relative(await realpath(course), physicalSourceRoot) !== '原始资料') {
+    throw new Error('course attachments: source directory resolves outside the course')
+  }
+  const ledger = await ledgerAt(join(course, '_工作区', '附件导入.json'))
+  if (ledger.pending !== undefined) {
+    throw new Error('course attachments: pending import must be resumed before transcription')
+  }
+  const roots = [physicalSourceRoot]
+  for (const folder of ledger.folders) {
+    if (resolve(folder) !== folder || await realpath(folder) !== folder || !(await stat(folder)).isDirectory()
+      || folder === course || withinSource(folder, course)) {
+      throw new Error('course attachments: registered folder is unavailable or contains the output course')
+    }
+    roots.push(folder)
+  }
+  return roots
+}
+
 /**
  * Import admitted files/images into the course's immutable source area, then
  * inventory exactly the registered imported paths. Never trust a model path.

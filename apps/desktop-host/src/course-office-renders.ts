@@ -6,6 +6,7 @@ import { mkdir, open, readFile, readdir, realpath, rename, stat, writeFile } fro
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { runCourseScript, type CourseVerifierRuntime } from './course-stage-verifier.ts'
+import { admittedCourseSourceRoots } from './course-attachments.ts'
 
 const execute = promisify(execFile)
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
@@ -115,14 +116,15 @@ async function renderSource(
 export async function prepareOfficeRenders(runtime: CourseVerifierRuntime, course: string): Promise<OfficeRenderPreparation> {
   const root = await realpath(course)
   const sources = requirements(await runCourseScript(runtime, root, 'office_render_requirements.py', []))
+  const admittedRoots = await admittedCourseSourceRoots(root)
   const renderRoot = join(root, '_工作区', 'office渲染')
   await mkdir(renderRoot, { recursive: true })
   const mapping: Record<string, Record<string, string[]>> = {}
   const reports: OfficeRenderPreparation['reports'] = []
   for (const source of sources) {
     const sourcePath = await realpath(source.path)
-    if (!inside(join(root, '原始资料'), sourcePath)) {
-      throw new Error(`course office: ${source.id} source is outside original materials`)
+    if (!admittedRoots.some(admitted => inside(admitted, sourcePath))) {
+      throw new Error(`course office: ${source.id} source is outside admitted materials`)
     }
     const { manifest } = await renderSource(runtime, root, renderRoot, source)
     reports.push({ source: source.id, pages: manifest.pageCount, missingFonts: manifest.missingFonts })
