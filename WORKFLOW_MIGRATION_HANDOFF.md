@@ -111,3 +111,11 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 该 IPC 日志的源码路径已定位：Windows `preload-mandatory-overlay.ts` 总会尝试读取更新状态并捕获失败；`main.ts` 仅在存在强制更新策略配置时创建注册该 handler 的 `DesktopMandatoryUpdateWindow`。隔离开发配置没有该策略，所以这条日志符合当前分支条件；尚不能据此推断主界面失败。下一步仍需实际查看窗口与附件交互。
 
 **后续优先级**：先在隔离窗口核对该 IPC 错误与底部输入／附件交互，并用一个小型混合 PDF＋PPTX＋DOCX 在真实模型会话验证 `create-course`、资料清单、聊天归纳与后续回合确认；再跑视觉探针、独立子代理批次、强制中断后 `resume`，最后完成知识、讲义、卡片与 packaged。用户配置的模型凭据在应用内，勿输出凭据；记录实际 token 用量和失败点，避免重复生成已通过阶段。当前周额度接近上限；停下前确认 Git 提交和工作区干净。
+
+## 2026-09-29 隔离图形界面验收与附件菜单修复
+
+用 `.desktop-cache/native-workflow-smoke-20260929/launch-ui.ps1` 的独立配置启动可见 Electron 窗口，实际确认主界面、底部输入和模型选择显示正常。加号菜单起初只有“文件”：`packages/client/ui-conversation/src/client/apply.ts` 用 `process.env.DSH_CLIENT_BUILD_PROFILE` 判断是否注册“文件夹”，前端运行时该值未可靠注入。现在 `apps/desktop/src/preload-app.ts` 仅对本地应用页面暴露 `__BLS_STUDIO__ = true`，客户端据此显示文件夹动作，并把普通文件走 DSH 持久上传。非应用页面没有此标志；预加载测试对此作了断言。
+
+重建 Client、Desktop 和锁定的 `apps/web/node_modules/.bin/vite.CMD` 后，隔离窗口的加号菜单实际显示“文件”和“文件夹”；此步只检查入口，**未进行真实文件选择／上传或模型生成**。先前误用仓库根部 Vite 8 导致 `getWatchFiles` 构建错误，改用应用自带 Vite 6 后完整构建通过，源码不需要为此修改。桌面与输入聚焦测试 35/35、Client/Desktop TypeScript、聚焦 oxlint、桌面和 Web bundle、`git diff --check` 均通过。已按记录的测试 PID 73452 单独关闭隔离窗口；原用户课程窗口未触碰。`mandatory-status` 日志为没有强制更新策略时预加载探测被捕获的情况，主界面可正常加载。
+
+本节的源码变更为 preload 标志、客户端两个运行时分支和对应测试，以及此交接记录；提交后以 `git log -1 --oneline` 确认最新检查点。续做优先验证完整附件导入与一次真正的迁移版小型 PDF＋PPTX＋DOCX 流程：先从聊天归纳目标、用户下一回合确认，再做图片读取探针和批次转写，观察 watchdog；强制中断后从最近凭证恢复，完成 packaged 收据。隔离配置没有用户密钥，不应假称已完成真实模型验收；要在用户已配置的应用中做实测时，保护其现有课程和凭据，记录实际 token 用量。不要读取整门旧课程产物。当前 Codex 周额度约 99%，本节保证额度耗尽后能从此节点继续。

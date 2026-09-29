@@ -437,7 +437,7 @@ describe('Conversation inject API', () => {
   })
 
   it('uploads desktop files as durable attachments in the Better Learning profile', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'better-learning')
+    vi.stubGlobal('__BLS_STUDIO__', true)
     vi.stubGlobal('__DSH_HOST_PATHS__', { pathFor: (file: File) => `/Users/me/${file.name}` })
     try {
       const b = await bench()
@@ -449,7 +449,6 @@ describe('Conversation inject API', () => {
         .toEqual(['file'])
       await b.runtime.dispose()
     } finally {
-      vi.unstubAllEnvs()
       vi.unstubAllGlobals()
     }
   })

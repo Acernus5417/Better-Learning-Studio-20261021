@@ -276,7 +276,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       available: session => inputHub.canPickFiles(session.sessionId),
       ui: { kind: 'action', run: (session) => { inputHub.pickFiles(session.sessionId) } },
     }), 'ui-conversation: File action')
-    if (process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning') {
+    if ((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true) {
       scope.effect(() => commands.register({
         name: 'folder',
         label: () => t('input.folder'),
@@ -503,7 +503,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
             const path = bridge?.pathFor(file) ?? ''
             if (directory && path === '') return t('attachment.pathUnavailable')
             if (path === '' || (!directory && (isImageMediaType(file.type)
-              || process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning'))) {
+              || (globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true))) {
               uploads.push(file)
               continue
             }
