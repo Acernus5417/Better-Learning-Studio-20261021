@@ -99,3 +99,5 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 验证：Host 聚焦 9 文件共 32 通过、1 跳过，加 Conversation 输入测试 15 通过、1 跳过；另启用 Codex 随包 Python 跑了中文课程／资料名的真实 inventory 测试 1 通过。Host、Conversation 的 TypeScript 与 tsdown、聚焦 oxlint、Host bundle 导入、72 包依赖检查通过；Better Learning 配置下的 Vite Web 前端构建也成功。没有调用用户模型 API。翻译配对门槛在未修改的 `apps/desktop/README.i18n.yaml` 旧同步记录处失败；不是本轮源码改动所致。原开发窗口仍运行旧进程，**尚未重启并实际桌面验收新交互**。直接 `pnpm run build:web` 曾被 pnpm 的全仓在线供应链元数据核验阻塞；已停止重试并用本地 Vite 直接构建成功。
 
 **仍需继续**：① 审核当前 `course-attachments.ts` 的多次导入及失败恢复，特别是创建目录成功但导入中途失败时的重试入口；为本轮用户消息中多个附件／文件夹及大目录检查成本与状态展示。② 在隔离新 Electron 会话用最小 PDF＋PPTX＋DOCX 实际调用 `create-course`、导入、`propose`、下一回合 `confirm`，观察 UI 附件可预览和文件夹芯片；不要读取完整课程产物。③ 在同一隔离课程运行真实视觉探针、独立子代理批次及 watchdog 停止／恢复，继续知识、路径、讲义、卡片到 packaged 收据；只在必要时调用用户配置的模型并记录实际用量。④ 恢复时避免动原用户课程和当前运行窗口。开发版 `start.bat` 带 `-SkipBuild`；本轮 Web 已构建，但旧窗口要重新启动才加载新 Host。
+
+本节代码检查点提交为 `a63c8a8 feat: inventory course materials from admitted chat input`。续做前先运行 `git status --short` 与 `git log -1 --oneline`。2026-09-29 此次记录时 Codex 五小时额度约用 29%，周额度约用 95%；应优先保留本交接信息再做大规模验收。
