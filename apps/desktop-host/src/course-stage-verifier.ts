@@ -43,12 +43,13 @@ function evidence(value: unknown, summary: string): CourseStageEvidence {
 }
 
 function scriptEnvironment(): NodeJS.ProcessEnv {
-  return { ...Object.fromEntries(Object.entries(process.env).filter(([name]) =>
-    !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name))), PYTHONDONTWRITEBYTECODE: '1' }
+  const safe = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+    !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name)))
+  return { ...safe, PYTHONDONTWRITEBYTECODE: '1', PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
 }
 
 type CourseScript = 'convert_materials.py' | 'assemble_knowledge.py' | 'lesson_tasks.py'
-  | 'core_cards.py' | 'obsidian_links.py' | 'validate_package.py'
+  | 'core_cards.py' | 'obsidian_links.py' | 'validate_package.py' | 'inventory_materials.py'
 
 /** Run one application-owned mechanical command without exposing process credentials. */
 export async function runCourseScript(
@@ -76,6 +77,20 @@ export async function runCourseMaterials(
   runtime: CourseVerifierRuntime, course: string, args: readonly string[],
 ): Promise<Record<string, unknown>> {
   return runCourseScript(runtime, course, 'convert_materials.py', args)
+}
+
+/** Inventory only paths copied from admitted human attachments. */
+export async function runCourseInventory(
+  runtime: CourseVerifierRuntime, course: string, paths: readonly string[],
+): Promise<{ sources: number }> {
+  if (paths.length === 0 || paths.some(path => !isAbsolute(path))) {
+    throw new Error('course inventory: explicit absolute source paths are required')
+  }
+  const result = await runCourseScript(runtime, course, 'inventory_materials.py', paths)
+  if (typeof result.sources !== 'number' || result.sources < 1) {
+    throw new Error('course inventory: invalid source count')
+  }
+  return { sources: result.sources }
 }
 
 async function accepted(runtime: CourseVerifierRuntime, course: string, script: string, args: string[]): Promise<boolean> {

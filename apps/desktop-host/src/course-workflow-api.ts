@@ -20,6 +20,7 @@ import { CourseTranscriptionBatchService } from './course-transcription-batch.ts
 import { CourseVisionProbeService } from './course-vision-probe.ts'
 import { recoverStoppedCourseAttempts } from './course-transcription-recovery.ts'
 import { CourseWatchdogService, type CourseWatchdogPolicy } from './course-watchdog-service.ts'
+import { importCourseAttachments } from './course-attachments.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -210,8 +211,8 @@ export async function installCourseWorkflowApi(
   }
   if (ctx.get('workspaceRegistry') === undefined || ctx.get('connection') === undefined
     || ctx.get('tools') === undefined || ctx.get('agents') === undefined || ctx.get('subagents') === undefined
-    || ctx.get('sessionProjections') === undefined) {
-    throw new Error('course workflow: Workspace, Connection, Tools, Agents, Subagents, and projections are required')
+    || ctx.get('sessionProjections') === undefined || ctx.get('attachments') === undefined) {
+    throw new Error('course workflow: Workspace, Connection, Tools, Agents, Subagents, attachments, and projections are required')
   }
   let runtimePromise: Promise<CourseVerifierRuntime> | undefined
   const runtime = (): Promise<CourseVerifierRuntime> => runtimePromise ??= installPrimaryRuntime(source, installRoot)
@@ -449,10 +450,10 @@ export async function installCourseWorkflowApi(
   })
   ctx.tools.register(defineTool({
     name: 'course_workflow',
-    description: 'Inspect or advance the application-owned Better Learning course workflow. Initialize before writing course output, then use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, prepare-transcription creates the unit ledger, probe verifies the current model with a fresh image-reading child, transcribe-batch runs one whole isolated child batch, and assemble-transcription merges completed sources. run-step executes whitelisted mechanical commands only in their matching stage. Complete each stage only after saved artifacts pass validation.',
+    description: 'Inspect or advance the application-owned Better Learning course workflow. create-course imports attachments from its direct human turn. import-attachments adds files from the current direct human turn during the materials stage and inventories actual saved files. Use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, prepare-transcription creates the unit ledger, probe verifies the current model with a fresh image-reading child, transcribe-batch runs one whole isolated child batch, and assemble-transcription merges completed sources. run-step executes whitelisted mechanical commands only in their matching stage. Complete each stage only after saved artifacts pass validation.',
     parameters: {
       action: { type: 'string', required: true,
-        enum: ['inspect', 'guide', 'create-course', 'initialize', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
+        enum: ['inspect', 'guide', 'create-course', 'initialize', 'import-attachments', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
       course: { type: 'string', description: 'Current Session course directory (.) or one direct child of its registered workspace. For create-course, a new direct-child name.' },
       section: { type: 'string', description: 'For guide: overview or a named stage reference/template. Omit to list available sections.',
         enum: Object.keys(COURSE_GUIDES) },
@@ -477,12 +478,30 @@ export async function installCourseWorkflowApi(
       const cwd = agent.session.header.cwd
       if (cwd === undefined) throw new Error('course workflow: session has no course workspace')
       if (args.action === 'create-course') {
-        requireHumanCourseConfirmation(ctx, agent)
+        const humanSeq = requireHumanCourseConfirmation(ctx, agent)
         if (args.course === undefined) throw new Error('course workflow: new course name is required')
         const created = await createAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course)
-        return { result: JSON.stringify({ course: args.course, initialization: await perform(created, 'initialize') }) }
+        const initialization = await perform(created, 'initialize')
+        // oxlint-disable-next-line typescript/no-deprecated -- Current Session log authority read.
+        const message = agent.session.snapshotEvents()[humanSeq]
+        const imported = message?.type === 'user/message'
+          ? await importCourseAttachments(created, message.data.content, ctx.attachments, await runtime(), cwd) : null
+        return { result: JSON.stringify({ course: args.course, initialization, imported }) }
       }
       const course = await resolveAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course ?? '.')
+      if (args.action === 'import-attachments') {
+        const state = await workflow(course).inspect()
+        if (state?.stage !== 'materials' || !['ready', 'running'].includes(state.status)) {
+          throw new Error('course workflow: attachments can be imported only during the materials stage')
+        }
+        const humanSeq = requireHumanCourseConfirmation(ctx, agent)
+        // oxlint-disable-next-line typescript/no-deprecated -- Current Session log authority read.
+        const message = agent.session.snapshotEvents()[humanSeq]
+        if (message?.type !== 'user/message') throw new Error('course workflow: direct human message is missing')
+        const imported = await importCourseAttachments(course, message.data.content, ctx.attachments, await runtime(), cwd)
+        if (imported === null) throw new Error('course workflow: the current human message has no attachments')
+        return { result: JSON.stringify(imported) }
+      }
       const humanSeq = args.action === 'propose' || args.action === 'confirm'
         ? requireHumanCourseConfirmation(ctx, agent) : undefined
       if (args.action === 'confirm') {

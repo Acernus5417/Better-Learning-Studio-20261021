@@ -91,3 +91,11 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 最近的代码提交为 `a9c7440`，前两次迁移提交是 `c310ad2` 和 `f6a4adb`；分支仍为 `codex/built-in-course-workflow`。完成交接文档补记后应确认工作区干净。最后一次检查：Host TypeScript、聚焦 oxlint、6 个 Host 测试文件共 24 项通过；隔离 Electron Host 启动并通过已认证路由 400 校验。用户原开发窗口继续运行旧进程，下一次正常启动才加载新的 Host bundle。不要为验证而重读大型课程产物或重新跑完整生成；本轮没有调用课程模型 API。
 
 优先处理：① 在独立会话中实际调用 `course_workflow` 的 `create-course`/`guide`/`propose`/后续回合 `confirm`，核对附件文件路径与课程目录绑定；② 以最小混合 PDF＋PPTX/DOCX 材料验证 `prepare-transcription`、真实 `probe`、一批 DSH 视觉成员、看门狗、暂停和重启 `resume`，预算内只读摘要与收据；③ 补完未覆盖的材料输入来源约束和必要 UI 交互，验证最终 `run-step` 与 packaged 校验。出现探针失败应暂停，待用户调整模型。真实端到端验收之前，不写完成标记。
+
+## 2026-09-29 当前续作：聊天附件与材料盘点
+
+本节覆盖上文“附件文件路径尚未绑定”的旧状态。现在 Better Learning 专用桌面输入会将单个文件作为 DSH 持久附件上传（通用 DSH 界面仍用原有路径引用）；文件夹选择与拖入保持 `@目录/` 芯片。Host 的 `course_workflow create-course` 读取**当前根 Agent 真实用户消息**中已准入的 file/image 引用及明确的文件夹提及，复制文件／图片到新课程 `原始资料/`，并以真实绝对路径调用随包 `inventory_materials.py`。资料阶段的 `import-attachments` 可接收后续用户回合补充。二者都不接收模型提供的任意资料路径。文件以 SHA-256 和字节数核对，临时文件校验后用硬链接原子发布，避免覆盖已存在来源；目录若包含输出课程会拒绝。持久登记在 `_工作区/附件导入.json`。Python 脚本进程现固定 UTF-8，中文来源名在 Node 端可解析。
+
+验证：Host 聚焦 9 文件共 32 通过、1 跳过，加 Conversation 输入测试 15 通过、1 跳过；另启用 Codex 随包 Python 跑了中文课程／资料名的真实 inventory 测试 1 通过。Host、Conversation 的 TypeScript 与 tsdown、聚焦 oxlint、Host bundle 导入、72 包依赖检查通过；Better Learning 配置下的 Vite Web 前端构建也成功。没有调用用户模型 API。翻译配对门槛在未修改的 `apps/desktop/README.i18n.yaml` 旧同步记录处失败；不是本轮源码改动所致。原开发窗口仍运行旧进程，**尚未重启并实际桌面验收新交互**。直接 `pnpm run build:web` 曾被 pnpm 的全仓在线供应链元数据核验阻塞；已停止重试并用本地 Vite 直接构建成功。
+
+**仍需继续**：① 审核当前 `course-attachments.ts` 的多次导入及失败恢复，特别是创建目录成功但导入中途失败时的重试入口；为本轮用户消息中多个附件／文件夹及大目录检查成本与状态展示。② 在隔离新 Electron 会话用最小 PDF＋PPTX＋DOCX 实际调用 `create-course`、导入、`propose`、下一回合 `confirm`，观察 UI 附件可预览和文件夹芯片；不要读取完整课程产物。③ 在同一隔离课程运行真实视觉探针、独立子代理批次及 watchdog 停止／恢复，继续知识、路径、讲义、卡片到 packaged 收据；只在必要时调用用户配置的模型并记录实际用量。④ 恢复时避免动原用户课程和当前运行窗口。开发版 `start.bat` 带 `-SkipBuild`；本轮 Web 已构建，但旧窗口要重新启动才加载新 Host。

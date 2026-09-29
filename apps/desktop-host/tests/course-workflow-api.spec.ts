@@ -85,7 +85,8 @@ describe('course API directory selection', () => {
     const subagents = { start: () => { throw new Error('unexpected visual child start') } }
     const tools = { register: (definition: ToolDefinition) => { courseTool = definition; return () => undefined } }
     const sessionProjections = { stateOf: () => ({ openTurnStartSeq: 0 }) }
-    const services = { workspaceRegistry, connection, agents, subagents, tools, sessionProjections }
+    const attachments = { readFileStream: () => { throw new Error('unexpected attachment read') } }
+    const services = { workspaceRegistry, connection, agents, subagents, tools, sessionProjections, attachments }
     const ctx = {
       ...services,
       get: (name: keyof typeof services) => services[name],

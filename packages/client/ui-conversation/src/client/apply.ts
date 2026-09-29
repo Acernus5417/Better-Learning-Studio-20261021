@@ -502,7 +502,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
             if (bridge === undefined && directory) return t('attachment.directoryDesktopOnly')
             const path = bridge?.pathFor(file) ?? ''
             if (directory && path === '') return t('attachment.pathUnavailable')
-            if (path === '' || (!directory && isImageMediaType(file.type))) {
+            if (path === '' || (!directory && (isImageMediaType(file.type)
+              || process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning'))) {
               uploads.push(file)
               continue
             }

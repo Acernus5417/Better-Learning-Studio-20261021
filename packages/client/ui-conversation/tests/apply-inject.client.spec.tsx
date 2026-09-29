@@ -436,6 +436,24 @@ describe('Conversation inject API', () => {
     }
   })
 
+  it('uploads desktop files as durable attachments in the Better Learning profile', async () => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'better-learning')
+    vi.stubGlobal('__DSH_HOST_PATHS__', { pathFor: (file: File) => `/Users/me/${file.name}` })
+    try {
+      const b = await bench()
+      const file = new File([Uint8Array.of(1, 2)], 'lecture.pdf', { type: 'application/pdf' })
+      expect(b.composerApi(ROOT).addFiles?.([file])).toBeNull()
+      const snapshot = b.inputApi(ROOT).state.getSnapshot()
+      expect(snapshot.draft).toBe('')
+      expect(b.composerApi(ROOT).resolveDraftAttachments?.(snapshot.attachmentIds).map(item => item.kind))
+        .toEqual(['file'])
+      await b.runtime.dispose()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('preserves selected text and file order and restores pasted directory chips from the draft', async () => {
     vi.stubGlobal('__DSH_HOST_PATHS__', { pathFor: (file: File) => `/proj/${file.name}` })
     onTestFinished(() => { vi.unstubAllGlobals(); cleanup() })
