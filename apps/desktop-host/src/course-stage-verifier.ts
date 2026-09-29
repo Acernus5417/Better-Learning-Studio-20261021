@@ -247,6 +247,7 @@ export function createCourseStageVerifier(runtime: CourseVerifierRuntime): Cours
       if (stage === 'lessons' || stage === 'cards') {
         if (await verifyPath(course) === null) return null
       }
+      if (stage === 'cards' && await verifyLessons(runtime, course) === null) return null
       switch (stage) {
         case 'transcription': return await verifyTranscription(runtime, course, model)
         case 'knowledge': return await verifyKnowledge(runtime, course)
