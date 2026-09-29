@@ -34,3 +34,4 @@
 - 恢复门禁检查发现 cards 阶段的复核链原先只查路径和卡片，不直接重验上一阶段讲义；现加入 `verifyLessons`，使重启或进入交付前若讲义证据失效就退回待检查状态。Host TypeScript、bundle、lint 与 11 项聚焦测试通过（2 项环境型跳过）。
 - 隔离宿主级混合资料恢复验收（无模型 API）：在新课程目录复制三份小资料，真实运行 inventory、plan、内置游标 initialize/propose/confirm、materials start/complete、transcription start、Office 自动渲染与 prepare。得到 3 来源、4 单元直接完成、3 视觉单元待转写、0 失败；模拟宿主重启的 `reconcile` 把运行中 transcription 变为 `needs_review`，显式 `resume` 后才回到 ready。另在副本中改动已通过校验的 DOCX，下一次 `reconcile` 正确把阶段退回 materials/needs_review；试图在 3 个视觉单元未完成时调用 `completeStage` 被拒绝。尚未覆盖真实模型探针、子代理与强制结束进程。
 - 修正文件夹来源与 Office 渲染的接线：初版渲染器只接受课程 `原始资料/`，会误拒用户明确选择的外部文件夹。现在从持久附件导入台账读取已登记文件夹，验证真实目录、非课程祖先和未完成导入状态，只允许其内的真实 Office 来源；未登记路径仍拒绝。新增测试证明边界，并用外部 `Materials` 文件夹中的同一组三份资料真实运行 inventory＋渲染＋prepare：3 来源、4 done、3 pending、0 failed。未调用模型 API。
+- 2026-09-30 继续：转写 `prepare` 摘要增加跨来源唯一的 `blocked_units`，宿主遇到受阻单元或渲染／脚本失败时将课程暂停并保存原因，阻止后续视觉成员在不完整资料上空转。无受阻的混合夹具返回 `blocked_units: []`；Host TypeScript、bundle、聚焦 12 项与随包 Python 27 项测试通过。尚未调用迁移版模型 API。

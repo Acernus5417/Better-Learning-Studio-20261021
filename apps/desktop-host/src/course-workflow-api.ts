@@ -382,11 +382,31 @@ export async function installCourseWorkflowApi(
         const command = action === 'prepare-transcription' ? 'prepare'
           : action === 'assemble-transcription' ? 'assemble' : 'diagnose'
         if (action === 'prepare-transcription') {
-          const installed = await runtime()
-          const officeResult = await prepareOfficeRenders(installed, course)
-          const result = await runCourseMaterials(installed, course,
-            ['prepare', '--office-renders', officeResult.mapping])
-          return { ...result, office: officeResult.reports }
+          try {
+            const installed = await runtime()
+            const officeResult = await prepareOfficeRenders(installed, course)
+            const result = await runCourseMaterials(installed, course,
+              ['prepare', '--office-renders', officeResult.mapping])
+            const blocked = result.blocked_units
+            if (!Array.isArray(blocked) || !blocked.every(item => typeof item === 'string')) {
+              throw new Error('转写准备结果缺少受阻单元清单')
+            }
+            if (blocked.length > 0) {
+              const reason = `资料转写准备发现 ${blocked.length} 个受阻单元：${blocked.slice(0, 5).join('、')}`
+              await cursor.pause(reason)
+              await watchdogs.stop(course)
+              return { ...result, office: officeResult.reports, paused: true, reason }
+            }
+            return { ...result, office: officeResult.reports }
+          } catch (error) {
+            const current = await cursor.inspect()
+            if (current?.stage === 'transcription' && current.status === 'running') {
+              const message = error instanceof Error ? error.message : String(error)
+              await cursor.pause(`资料转写准备失败：${message.slice(0, 300)}`)
+              await watchdogs.stop(course)
+            }
+            throw error
+          }
         }
         return runCourseMaterials(await runtime(), course, [command])
       }

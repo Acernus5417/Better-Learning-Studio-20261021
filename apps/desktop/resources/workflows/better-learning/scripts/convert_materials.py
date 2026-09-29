@@ -174,6 +174,8 @@ def summarize(data):
               for state in ('pending', 'reserved', 'running', 'done', 'unresolved', 'failed', 'needs_review', 'non_teaching', 'duplicate')}
     result = {'sources': len(data['sources']), 'units': len(units), 'counts': counts,
               'plan': '转写拆分计划.md', 'ledger': LEDGER}
+    result['blocked_units'] = [f"{s['id']}/{u['id']}" for s in data['sources']
+                               for u in s['units'] if u.get('blocked')]
     active = [a for a in data.get('attempts', []) if a['state'] in {'reserved', 'running', 'produced'}]
     result['active'] = [{'attempt': a['id'], 'state': a['state'], 'host_agent_id': a['host_agent_id'],
                          'member': a.get('logical_member'), 'task_manifest': a.get('task_manifest'),

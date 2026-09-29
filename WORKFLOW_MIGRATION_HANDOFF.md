@@ -146,6 +146,8 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 
 下一步仍是迁移版真实端到端：在用户不操作窗口时，用应用界面或隔离配置完成直接附件发送、跨用户回合目标确认，随后当前实际多模态模型做视觉探针及一批成员，核验 watchdog 与强制中断后的 `resume`，最终生成 packaged 收据。注意 token 用量和缓存口径；不要为检查而读取整门旧课程正文。当前源码变更尚需提交；提交后以 `git status --short` 确认工作区干净。
 
+2026-09-30 补充：`convert_materials.py` 的摘要现提供 `blocked_units`（`SRC-xxx/Uxxxxx`）；宿主 `prepare-transcription` 遇到受阻单元会将原生游标暂停并返回原因，渲染或脚本异常也暂停并抛出错误。避免 `prepare` 退出码为 0 却静默继续。无受阻混合夹具报告空数组。Host TypeScript/bundle、12 项聚焦测试、随包 Python 27 项测试通过，未调用 API。当前 `sky.list_apps()` 未列出运行中的 Better Learning Studio 窗口，可以在构建后重新启动实际桌面验收；先确认窗口目标唯一。
+
 右侧课程状态条随后新增原生游标的“已通过 N/7 阶段”，转写时读取小型 `_工作区/office渲染报告.json` 并显示有缺失字体的来源数。类型检查、聚焦 lint、7 项 UI 测试与 Better Learning 配置下的 Web 构建通过。仅修改状态摘要，不加载课程正文。此批 UI 代码提交前应再检查 Git 状态。
 
 新 Office 全页 PNG 若不加入打包清理，会让最终课程包携带大块缓存。`convert_materials.py` 的 `PURGE` 已加入 `_工作区/office渲染`；映射与字体报告保留为台账。暴露给模型的交付指南和 `runtime-policy.md` 已改为内置 `run-step package-preview/package` 与 `complete-stage` 自动做 packaged 校验，不再要求手动停止旧 `watchdog.py` 或操作跨宿主成员。已打包的旧小课程因知识文件已搬移，无法用它再跑 `package --dry-run`；需在新的未打包真实课程末阶段核对清理预览。
