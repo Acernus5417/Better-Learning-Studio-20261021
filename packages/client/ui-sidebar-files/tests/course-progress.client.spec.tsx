@@ -56,4 +56,38 @@ describe('course progress strip', () => {
     const reader = createCourseProgressReader({ workspaceFiles: { read, list } } as unknown as ClientRemote)
     expect(await reader(sessionId, root, new AbortController().signal)).toEqual({ kind: 'multiple' })
   })
+
+  it('shows native recovery status without reading generated content', async () => {
+    const read = vi.fn(async (_session: SessionId, path: string) => {
+      if (path === '_工作区/内置工作流.json') return { ok: true, value: { eof: true, text: JSON.stringify({
+        schemaVersion: 1, stage: 'transcription', status: 'needs_review', nextAction: '检查中断的转写批次',
+      }) } }
+      if (path === '_工作区/生成进度.json') return { ok: true, value: { eof: true, text: JSON.stringify({
+        stage: 'working', completed_lessons: ['L-1'], blockers: [],
+      }) } }
+      return { ok: false, error: { code: 'workspace-file/not-found' } }
+    })
+    const reader = createCourseProgressReader({ workspaceFiles: { read, list: vi.fn() } } as unknown as ClientRemote)
+    expect(await reader(sessionId, root, new AbortController().signal)).toEqual({
+      kind: 'ready', value: { stage: 'needs_review', completedChapters: 0, completedLessons: 1,
+        blockers: 0, nextAction: '检查中断的转写批次' },
+    })
+  })
+
+  it('counts Host watchdog exceptions while transcription is running', async () => {
+    const read = vi.fn(async (_session: SessionId, path: string) => {
+      if (path === '_工作区/内置工作流.json') return { ok: true, value: { eof: true, text: JSON.stringify({
+        schemaVersion: 1, stage: 'transcription', status: 'running', nextAction: '正在转写',
+      }) } }
+      if (path === '_工作区/内置看门狗.json') return { ok: true, value: { eof: true, text: JSON.stringify({
+        silentAttemptIds: ['A-1'], stoppedAttemptIds: ['A-2'], unknownAttemptIds: [],
+      }) } }
+      return { ok: false, error: { code: 'workspace-file/not-found' } }
+    })
+    const reader = createCourseProgressReader({ workspaceFiles: { read, list: vi.fn() } } as unknown as ClientRemote)
+    expect(await reader(sessionId, root, new AbortController().signal)).toEqual({
+      kind: 'ready', value: { stage: 'working', completedChapters: 0, completedLessons: 0,
+        blockers: 2, nextAction: '正在转写' },
+    })
+  })
 })

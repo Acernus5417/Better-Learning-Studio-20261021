@@ -6,7 +6,7 @@ import type { CourseProgressResult, FilesInjected } from './face.ts'
 import type {} from './locales.ts'
 import css from './FilesBody.module.css'
 
-/** A compact view of the skill's last durable checkpoint. */
+/** A compact view of the course's last durable checkpoint. */
 export function CourseProgress({
   sessionId, root, readCourseProgress, t,
 }: {
@@ -39,7 +39,8 @@ export function CourseProgress({
     return <div className={css.courseProgress} data-course-progress={progress.kind}>{t(message)}</div>
   }
   const { stage, completedChapters, completedLessons, blockers, nextAction } = progress.value
-  const stageKey = stage === 'intake' || stage === 'needs_update' || stage === 'working' || stage === 'complete'
+  const stageKey = stage === 'intake' || stage === 'needs_update' || stage === 'needs_review'
+    || stage === 'paused' || stage === 'working' || stage === 'complete'
     ? `courseProgress.${stage}` as const : 'courseProgress.other'
   return (
     <div className={css.courseProgress} data-course-progress={stage} aria-live="polite">

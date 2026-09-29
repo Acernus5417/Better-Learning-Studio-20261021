@@ -145,7 +145,7 @@ export interface FilesInjected {
   readonly toggle: (tabId: TabId, parentPath: string, path: string, expanded: readonly string[], signal: AbortSignal) => void
 }
 
-/** Only the fields needed to display course-wide status; the skill owns the full file. */
+/** Only the fields needed to display course-wide status. */
 export interface CourseProgressState {
   readonly stage: string
   readonly completedChapters: number
@@ -158,30 +158,66 @@ export type CourseProgressResult =
   | { readonly kind: 'waiting' | 'failed' | 'multiple' }
   | { readonly kind: 'ready'; readonly value: CourseProgressState }
 
-/** Read the skill-owned checkpoint without taking ownership of its schema. */
+/** Read native workflow state when present, retaining legacy course progress for existing runs. */
 export function createCourseProgressReader(remote: ClientRemote): FilesInjected['readCourseProgress'] {
   return async (sessionId, root, signal) => {
     const readAt = async (prefix: string): Promise<CourseProgressResult | null> => {
+      const native = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/内置工作流.json`, {}, signal)
+      if (!native.ok && native.error.code !== 'workspace-file/not-found') return { kind: 'failed' }
       const result = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/生成进度.json`, {}, signal)
-      if (!result.ok) return result.error.code === 'workspace-file/not-found' ? null : { kind: 'failed' }
-      if (!result.value.eof) return { kind: 'failed' }
+      if (!result.ok && result.error.code !== 'workspace-file/not-found') return { kind: 'failed' }
+      if (!native.ok && !result.ok) return null
+      if ((native.ok && !native.value.eof) || (result.ok && !result.value.eof)) return { kind: 'failed' }
       try {
-        const value: unknown = JSON.parse(result.value.text)
+        const value: unknown = result.ok ? JSON.parse(result.value.text) : {}
         if (typeof value !== 'object' || value === null || Array.isArray(value)) return { kind: 'failed' }
         const state = value as Record<string, unknown>
         let stage = typeof state.stage === 'string' ? state.stage : 'other'
+        let nextAction = typeof state.next_action === 'string' ? state.next_action.trim() || undefined : undefined
+        let transcriptionRunning = false
+        if (native.ok) {
+          const decoded: unknown = JSON.parse(native.value.text)
+          if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) return { kind: 'failed' }
+          const cursor = decoded as Record<string, unknown>
+          if (cursor.schemaVersion !== 1 || typeof cursor.stage !== 'string' || typeof cursor.status !== 'string') {
+            return { kind: 'failed' }
+          }
+          stage = cursor.status === 'complete' ? 'complete'
+            : cursor.status === 'waiting_confirmation' ? 'intake'
+              : cursor.status === 'paused' || cursor.status === 'needs_review' ? cursor.status : 'working'
+          nextAction = typeof cursor.nextAction === 'string' ? cursor.nextAction.trim() || undefined : undefined
+          transcriptionRunning = cursor.stage === 'transcription' && cursor.status === 'running'
+        }
         // Older skill runs left the progress stage at "working" after a
         // successful packaged validation. The receipt is the stronger gate.
-        if (stage !== 'complete') {
+        if (stage !== 'complete' || native.ok) {
           const receipt = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/打包检查.json`, {}, signal)
+          let packaged = false
           if (receipt.ok && receipt.value.eof) {
             try {
               const report: unknown = JSON.parse(receipt.value.text)
               if (typeof report === 'object' && report !== null && !Array.isArray(report)) {
                 const check = report as Record<string, unknown>
-                if (check.mode === 'packaged' && check.passed === true) stage = 'complete'
+                packaged = check.mode === 'packaged' && check.passed === true
               }
             } catch { /* A malformed receipt cannot supersede the progress file. */ }
+          }
+          if (native.ok && stage === 'complete' && !packaged) { stage = 'needs_review'; nextAction = undefined }
+          else if (!native.ok && packaged) stage = 'complete'
+        }
+        let blockers = Array.isArray(state.blockers) ? state.blockers.length : 0
+        if (transcriptionRunning) {
+          const health = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/内置看门狗.json`, {}, signal)
+          if (health.ok && health.value.eof) {
+            try {
+              const report: unknown = JSON.parse(health.value.text)
+              if (typeof report === 'object' && report !== null && !Array.isArray(report)) {
+                const check = report as Record<string, unknown>
+                const issues = ['silentAttemptIds', 'stoppedAttemptIds', 'unknownAttemptIds']
+                  .reduce((count, key) => count + (Array.isArray(check[key]) ? check[key].length : 0), 0)
+                blockers = Math.max(blockers, issues)
+              }
+            } catch { /* A malformed health snapshot does not supersede the workflow state. */ }
           }
         }
         return {
@@ -190,9 +226,8 @@ export function createCourseProgressReader(remote: ClientRemote): FilesInjected[
             stage,
             completedChapters: Array.isArray(state.completed_chapters) ? state.completed_chapters.length : 0,
             completedLessons: Array.isArray(state.completed_lessons) ? state.completed_lessons.length : 0,
-            blockers: Array.isArray(state.blockers) ? state.blockers.length : 0,
-            nextAction: stage === 'complete' ? undefined
-              : typeof state.next_action === 'string' ? state.next_action.trim() || undefined : undefined,
+            blockers,
+            nextAction: stage === 'complete' ? undefined : nextAction,
           },
         }
       } catch {

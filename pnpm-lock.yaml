@@ -714,6 +714,9 @@ importers:
       '@deepseek-ai/dsh-schedule':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule
+      '@deepseek-ai/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../packages/subagent/subagent
       '@deepseek-ai/dsh-skill-office':
         specifier: workspace:*
         version: link:../../packages/skill/skill-office

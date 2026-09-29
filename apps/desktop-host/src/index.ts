@@ -14,6 +14,14 @@ import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
+import { installCourseWorkflowApi } from './course-workflow-api.ts'
+
+function positiveMilliseconds(name: string, fallback: number): number {
+  const raw = process.env[name]
+  const value = raw === undefined ? fallback : Number(raw)
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`)
+  return value
+}
 
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
@@ -97,6 +105,14 @@ async function main(): Promise<void> {
     source: process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime'),
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
+  const skillRoot = process.env.BLS_SKILL_ROOT
+  if (skillRoot !== undefined) {
+    await installCourseWorkflowApi(ctx, process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime'),
+      join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'), join(skillRoot, 'scripts'), {
+        intervalMs: positiveMilliseconds('BLS_WATCHDOG_INTERVAL_MS', 90_000),
+        silentMs: positiveMilliseconds('BLS_WATCHDOG_SILENT_MS', 900_000),
+      })
+  }
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })
