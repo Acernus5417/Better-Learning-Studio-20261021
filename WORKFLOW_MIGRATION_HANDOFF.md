@@ -85,3 +85,9 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 - `course_workflow create-course` 现支持根工作区会话在真实用户回合创建**新的直接子课程目录**，随即调用 plan 和原生初始化。拒绝路径穿越、Windows 保留名、重复目录和子课程会话再嵌套；返回课程名供后续工具调用。模型执行阶段时会核对当前实际选模与游标模型，手动切模后必须暂停并 `change-model`，避免静默混用模型。Host 单测覆盖这些边界。
 - 为不打断仍运行的旧开发窗口，用 `.desktop-cache/native-workflow-smoke-20260929` 下的独立 `DSH_HOME` 和 Electron 用户数据、`BLS_WEB_PORT=19388` 启动新 Host。首次发现当前机器 `apps/desktop-host/node_modules` 尚缺 `dsh-llm`、`dsh-tools`、`dsh-session-projection` 和此前已声明的 `dsh-subagent` workspace junction，已在忽略的 `node_modules` 里补齐；源码 manifest/lock 包含新增依赖，干净安装应由 pnpm 建立链接。用扩大沙箱权限启动后，Host 在 19388 成功监听，已认证 `/api/better-learning/workflow` 对无效 JSON 对象返回预期 400，证明路由挂载。测试实例 PID 从隔离记录读取后已单独停止；原用户窗口没有重启。**未发起模型请求。**
 - 当前安装器脚本测试仍受本机缺 Visual Studio C++ Build Tools / Windows SDK 阻断。隔离实例只验证应用启动与 HTTP 路由，尚未验证模型工具实际调用、视觉子代理生命周期、材料附件定位或生成质量。迁移版用户界面与这些内容需后续验收。重新启动原开发窗口后才能加载新编译的 Host；不要在用户正操作时覆盖其会话。
+
+## 当前恢复检查点
+
+最近的代码提交为 `a9c7440`，前两次迁移提交是 `c310ad2` 和 `f6a4adb`；分支仍为 `codex/built-in-course-workflow`。完成交接文档补记后应确认工作区干净。最后一次检查：Host TypeScript、聚焦 oxlint、6 个 Host 测试文件共 24 项通过；隔离 Electron Host 启动并通过已认证路由 400 校验。用户原开发窗口继续运行旧进程，下一次正常启动才加载新的 Host bundle。不要为验证而重读大型课程产物或重新跑完整生成；本轮没有调用课程模型 API。
+
+优先处理：① 在独立会话中实际调用 `course_workflow` 的 `create-course`/`guide`/`propose`/后续回合 `confirm`，核对附件文件路径与课程目录绑定；② 以最小混合 PDF＋PPTX/DOCX 材料验证 `prepare-transcription`、真实 `probe`、一批 DSH 视觉成员、看门狗、暂停和重启 `resume`，预算内只读摘要与收据；③ 补完未覆盖的材料输入来源约束和必要 UI 交互，验证最终 `run-step` 与 packaged 校验。出现探针失败应暂停，待用户调整模型。真实端到端验收之前，不写完成标记。
