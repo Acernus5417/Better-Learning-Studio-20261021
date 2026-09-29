@@ -206,6 +206,10 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     minWidth: 520,
     minHeight: 600,
     show,
+    ...(process.platform === 'win32' ? {
+      icon: app.isPackaged ? join(process.resourcesPath, 'icon.ico')
+        : join(app.getAppPath(), 'resources', 'icon-windows.ico'),
+    } : {}),
     ...(process.platform === 'win32' && primary ? {
       titleBarStyle: 'hidden' as const,
       titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT, color: chromeFallbackFill(),
@@ -308,6 +312,13 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
 }
 
 async function main(): Promise<void> {
+  process.env.BLS_STUDIO = '1'
+  if (process.env.DSH_HOME === undefined || process.env.DSH_HOME.trim() === '') {
+    process.env.DSH_HOME = join(app.getPath('appData'), 'BetterLearningStudio-DSH', 'dsh')
+  }
+  process.env.BLS_SKILL_ROOT = app.isPackaged
+    ? join(process.resourcesPath, 'skills')
+    : fileURLToPath(new URL('../resources/skills', import.meta.url))
   void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
@@ -619,8 +630,17 @@ async function main(): Promise<void> {
     // Shell-owned documents live in the application bundle and never pass through the Host.
     if (url.hostname === 'shell') return serveWebDocument(request, join(app.getAppPath(), 'renderer'))
     if (url.hostname === 'app') {
+      if (url.pathname === '/favicon.svg' || url.pathname === '/favicon-dark.svg') {
+        if (request.method !== 'GET' && request.method !== 'HEAD') return Promise.resolve(new Response(null, { status: 405 }))
+        const icon = development
+          ? join(app.getAppPath(), 'resources', 'icon-windows.svg')
+          : join(process.resourcesPath, 'icon.svg')
+        return readFile(icon).then(bytes => new Response(request.method === 'HEAD' ? null : new Uint8Array(bytes), {
+          headers: { 'content-type': 'image/svg+xml' },
+        }))
+      }
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname.startsWith('/assets/')
-        || ['/favicon.svg', '/manifest.webmanifest'].includes(url.pathname)) {
+        || url.pathname === '/manifest.webmanifest') {
         return serveWebDocument(request, join(resources.dsh, 'node_modules', '@deepseek-ai', 'dsh-web-frontend', 'dist'))
       }
       if (backend.host === undefined || hostUrl === undefined || hostCookie === undefined) {
@@ -874,7 +894,7 @@ async function main(): Promise<void> {
   const applicationIconPath = development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
     : join(process.resourcesPath, 'icon.png')
   app.setAboutPanelOptions({
-    applicationName: 'DeepSeek Harness',
+    applicationName: 'Better Learning Studio',
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',

@@ -51,7 +51,7 @@ export interface Mounted {
   readonly view: RenderResult
   readonly instance: FilesStoreInstance
   readonly script: ScriptedList
-  readonly face: FilesInjected
+  readonly face: Omit<FilesInjected, 'readCourseProgress'>
   readonly controller: AbortController
   readonly tabActions: MockedTabActions
   /** Render a fresh body over the same store and face, as a tab switch remounts it. */
@@ -92,6 +92,7 @@ function harness(cwd: string | null, refreshShortcut?: ReturnType<FilesBodyProps
     useStore: hookOf(instance),
     actions: instance.actions,
     ...face,
+    readCourseProgress: async () => ({ kind: 'waiting' as const }),
     t: makeTranslate(zh),
   }
   return { instance, script, face, controller, tabActions, shared }

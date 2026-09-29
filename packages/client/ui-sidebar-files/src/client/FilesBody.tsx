@@ -20,6 +20,7 @@ import {
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-files/types'
 import { childPath } from './face.ts'
+import { CourseProgress } from './CourseProgress.tsx'
 import type { FilesInjected } from './face.ts'
 import type {} from './locales.ts'
 import type { FilesTabState, createFilesStore } from './store.ts'
@@ -135,7 +136,7 @@ function Level({ path, tree }: { path: string; tree: TreeContext }): ReactNode {
 
 /** The file tree's body: the workspace root and whatever the reader has opened under it. */
 export function FilesBody({
-  useTabInfo, sessionId, useSessions, useStore, actions, start, refresh, setAutoRefresh, toggle, t,
+  useTabInfo, sessionId, useSessions, useStore, actions, start, refresh, setAutoRefresh, toggle, readCourseProgress, t,
 }: FilesBodyProps): ReactNode {
   const { tab } = useTabInfo()
   useEffect(() => tab.actions.bindCommands({ refresh: () => { refresh(tab.id) } }), [tab.actions, tab.id, refresh])
@@ -211,6 +212,9 @@ export function FilesBody({
           </button>
         </Tooltip>
       </div>
+      {process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning' && (
+        <CourseProgress sessionId={sessionId} root={state.root} readCourseProgress={readCourseProgress} t={t} />
+      )}
       <div
         ref={bodyRef}
         className={css.body}

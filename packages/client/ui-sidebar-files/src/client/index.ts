@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import { FILES_ID, filesDefinition } from './definition.tsx'
-import { createList, createWatch, filesFace } from './face.ts'
+import { createCourseProgressReader, createList, createWatch, filesFace } from './face.ts'
 import { FilesBody } from './FilesBody.tsx'
 import { FilesTitle } from './FilesTitle.tsx'
 import { en, zh } from './locales.ts'
@@ -66,9 +66,26 @@ export function apply(ctx: ClientContext): void {
   })
   ctx.effect(() => ctx.sidebarRightTabs.register(filesDefinition(t)), 'ui-sidebar-files: files type')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-files: dictionaries')
+  if (process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning') {
+    ctx.effect(() => {
+      const initialized = new Set<string>()
+      const sync = (): void => {
+        const sessionId = ctx.sidebarRight.mounted.getSnapshot()
+        if (sessionId === undefined || initialized.has(sessionId)) return
+        initialized.add(sessionId)
+        ctx.sidebarRight.openTab('files')
+        if (!ctx.sidebarRight.isExpanded()) ctx.sidebarRight.toggleExpanded()
+      }
+      const unsubscribe = ctx.sidebarRight.mounted.subscribe(sync)
+      sync()
+      return unsubscribe
+    }, 'better-learning: show course files beside the conversation')
+  }
 
   const store = createFilesStore()
-  const inject = filesFace(createList(ctx.remote), createWatch(ctx.remote))
+  const face = filesFace(createList(ctx.remote), createWatch(ctx.remote))
+  const readCourseProgress = createCourseProgressReader(ctx.remote)
+  const inject = (...args: Parameters<typeof face>) => ({ ...face(...args), readCourseProgress })
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register(
     { name: 'sidebar.right.pane.tab', key: FILES_ID, locale: NS, store, inject },
     FilesBody,

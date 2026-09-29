@@ -32,6 +32,36 @@
   margin-right: 12px;
 }
 
+.courseProgress {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px 16px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+.courseProgressTitle {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+
+.courseProgressIssue {
+  color: var(--dsw-alias-label-primary);
+}
+
+.courseProgressNext {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+}
+
 .body {
   flex: 1 1 auto;
   min-height: 0;

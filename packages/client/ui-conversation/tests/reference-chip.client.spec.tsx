@@ -4,7 +4,8 @@
  * marker fallback, label truncation container, and invalid styling.
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
+import { vi } from 'vitest'
 import { ReferenceChip } from '../src/client/input/editor/ReferenceChip.tsx'
 
 afterEach(cleanup)
@@ -30,5 +31,12 @@ describe('ReferenceChip', () => {
     const chip = container.firstElementChild
     expect(chip).not.toBeNull()
     expect([...(chip?.classList ?? [])].some(name => name.includes('invalid'))).toBe(true)
+  })
+
+  it('removes a pending file through its visible button', () => {
+    const onRemove = vi.fn()
+    const { getByRole } = render(<ReferenceChip label="lesson.pdf" appearance="file" invalid={false} onRemove={onRemove} removeLabel="移除附件 lesson.pdf" />)
+    fireEvent.click(getByRole('button', { name: '移除附件 lesson.pdf' }))
+    expect(onRemove).toHaveBeenCalledOnce()
   })
 })

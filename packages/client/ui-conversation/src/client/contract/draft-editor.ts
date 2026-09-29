@@ -17,6 +17,8 @@ export interface ReferenceInsert {
   readonly label: string
   readonly appearance?: 'session' | 'file' | 'folder'
   readonly clipboardText: string
+  /** Localized button label when this reference is a removable pending attachment. */
+  readonly removeLabel?: string
 }
 
 /** Keyboard keys intercepted by an open trigger menu. */

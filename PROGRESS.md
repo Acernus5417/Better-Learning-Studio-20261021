@@ -1,0 +1,21 @@
+# 当前进度
+
+- 桌面应用基于 DSH v0.1.7-rc.2，完整源码已导入本仓库；旧版代码与用户指定的旧数据已按授权处理。当前开发版在 Windows Electron 中启动过。
+- 随包 `better-learning` skill、专用 Agent 预设、DSH 内部可写视觉子代理、同模型路由、内置 Python/Office 运行时已接入。
+- 桌面端已有 Codex 风格三栏、底部输入、拖入与加号附件、发送前可点击文件标签预览并点“×”移除、右侧文件预览和课程进度小状态条；模型设置支持内置服务商与兼容地址，账号占位页已显示。实际 Electron 窗口中验证了 PDF 标签的添加与移除。
+- 随附 Python 的 pypdf/pypdfium2、Office 依赖经过运行时 smoke；LibreOffice Kit 已由 0.1.1 升至 0.1.2，PPTX 与 DOCX 实际渲染成功。
+- 用户在应用中配置模型后，已用三份小型 PDF＋DOCX＋PPTX 附件完成一次真实端到端课程生成：视觉探针通过，7/7 单元转写、知识库、两讲讲义、10 张卡片、链接重建、package 与 packaged 校验均通过。课程位于 `C:/Users/win11/Documents/deepseek-harness/default-workspace/从概念图示到练习趋势`；`_工作区/打包检查.json` 记录 `passed: true`、错误 0。用户在会话里手动切换和重试了模型，不能据此判断应用自动选模异常。
+- 用户另用 `C:/Users/win11/Desktop/转写2/复变函数与积分变换` 完成了较大课程测试；交付台账为 1 份来源、270/270 单元、10 讲、51 张卡，packaged 收据 `passed: true`、错误 0。旧 packaged 摘要把来源和单元数显示为 0；脚本已修正为从保留的台账统计，并用小型课程只读复核得到 3 来源、7 单元、12 知识点、2 讲、10 卡，全部通过。
+- 真实生成会话的桌面用量计数约 82.1M token、缓存命中约 98%；这是累积模型 token 口径，包含缓存复用，不等于未缓存用量或账单。此后只做本地代码与校验收据检查，没有再次调用模型生成课程。
+- 端到端测试发现：课程在工作区子目录时右栏原先误显示“等待课程资料”，打包通过后旧进度文件仍为 `working`。已让右栏识别唯一子课程并以通过的 packaged 收据显示“课程已完成”，同时让今后的 packaged 校验写入完成阶段。应用重新加载后实测右栏显示“课程已完成”。
+- 当前开发版配置目录包含测试会话和存储文件；自动审批拒绝递归删除，需保留。新安装使用新的 `Documents/Better Learning Studio/Courses` 默认工作区路径，既有测试会话仍指向此前 DSH 路径。
+- 已重建 Host、Client、Web、Electron 并启动；Python/Office runtime smoke、TypeScript 客户端构建和 UI 文案归属检查均通过。最终窗口中确认了品牌和“文件／文件夹”并列菜单。全量 GUI 测试 9200 项通过、1 项跳过、1 项失败；失败项是在此 Windows 环境临时目录创建 symlink 时返回 EPERM，和本次改动无关。
+- 恢复专项验收已在隔离工作区 `.desktop-cache/recovery-e2e-20260927` 执行：复制已通过校验的小课程，仅移除副本的 packaged 收据并将进度设为 `working`，模拟 package 完成而最后校验中断；关闭并重启 Electron 后，工作区、会话和检查点保留。右栏原先误写“正在生成课程”且不显示 `next_action`，现改为“课程未完成”并显示待确认的下一步；`package` 命令今后也会把“运行 packaged 校验”写入持久进度。模型在新会话仅检查已有进度/索引/收据，补跑 `validate_package.py --mode packaged`，结果 `passed: true`、错误 0、进度 `complete`；除进度与打包收据外，副本中的所有原产物与原课程逐文件哈希一致。再次重启后，完成状态和会话仍保留。本次模型用量约 128K token、缓存命中 82%；未重复生成课程。本试验覆盖有持久检查点的末阶段恢复。
+- 又在隔离工作区 `.desktop-cache/recovery-active-20260927` 执行了真正的运行中断测试：让同一模型会话用随包 Python 启动 45 秒的受控探针，确认 `started` 已写入且 `finished` 尚未写入时强制结束 Electron。探针子进程随宿主停止，等待超过 45 秒后 `finished` 与 packaged 收据仍不存在；重启后原会话、`working` 状态及“运行 packaged 校验”的下一步仍在。直接在同一会话继续，模型没有重跑探针，而是依据已有 final 收据只执行 packaged 校验，结果 `passed: true`、错误 0、进度 `complete`。原课程文件逐文件哈希差异 0（除预期进度、打包收据及探针标记）。该测试会话累计约 102K token、缓存命中 86%。
+- Office 原生图形转换在 DSH 工作区沙箱中曾请求一次扩大权限，仍需改善这条运行路径。打包脚本与链接校验的单元测试通过；对大资料的运行时间和 API 用量仍需持续观察，现有会话统计含大量缓存复用。
+- 按用户要求新增 Better Learning Studio 原创双页环图标：深绿色圆角底、浅色连续书页，参考 ChatGPT 图标的简洁单色与圆润几何风格而不使用其六瓣结造型。统一替换 Windows/macOS 应用 PNG/SVG、Windows 多尺寸托盘 ICO、侧栏/会话品牌标记、欢迎页字标、安装器浅色/深色与 2x 资源；桌面协议的浅色/深色 favicon 也改为此标记。加入 `render-studio-assets.mjs` 供以后重生成位图。已在实际 Electron 窗口确认侧栏图标和 favicon 服务返回新 SVG；Host/Client/Web 构建通过，品牌/托盘 9 测试、安装器 6 测试及协议专项 1 测试通过。
+- 用户否决上述双页环视觉方案，要求先提供黑白线条简约风格的多案选择。已在 `.desktop-cache/icon-options/` 生成 A 展页、B 字母 B、C 学习回环、D 书签四个矢量方案及 `choices.png` 总览；尚未把未选择的新方案安装到应用。后续按用户所选方案替换现有深绿色双页环，再重建并验收。
+- 用户选定 A 展页作为基础，要求白底黑线并加入几何元素。已在 `.desktop-cache/icon-options/` 生成 A1 圆点、A2 书脊菱形、A3 四角框线三个矢量细化方案与 `a-refinements.png` 对比图，包含 36px 缩略预览；等待用户选择最终几何处理后安装。
+- 用户随后明确选定新概念图的左上角折页标记，取代此前 A1/A2/A3 待选状态。已将选中的折页轮廓重绘为白底黑色矢量，并统一替换桌面应用 SVG/PNG、Windows 托盘 ICO、侧栏/会话品牌组件、欢迎页及安装器明暗两套字标资源；`.desktop-cache/icon-options/selected-top-left-preview.png` 展示大图、128/64/32/24px 和暗色界面预览。已用 `DSH_CLIENT_BUILD_PROFILE=better-learning` 重建 Client 与 Web，构建产物中的品牌组件注册及新路径均存在；托盘/安装器/品牌三组测试通过，桌面协议 favicon 专项测试通过。旧产品名造成的 9 个 main-startup 断言与快照已更新，109/109 测试通过。Web 构建在沙箱内读取 Vite 配置受限，获自动审查批准后在扩大权限下完成。确认旧实例无活动课程子进程、会话文件约三小时未更新后重启开发版；沙箱内启动因 AppData 锁文件与 GPU 权限失败，以扩大权限重试后成功。实际 Electron 窗口已重新打开，侧栏展示新黑白折页标记，课程会话与完成状态保留。
+- 用户指出 Windows 应用图标仍显示 Electron 默认图标。已从折页 SVG 新增 16–256px 的独立 `icon-windows.ico`（与托盘放大版分开），设置到 Windows BrowserWindow 和 electron-builder 的 exe 图标，并随包附带 `icon.ico`。开发版通过 `resedit` 在 `.desktop-build/development/branded-electron` 生成带品牌图标及 ProductName 的私有 Electron 可执行文件，原始依赖不变；保留文件名 `electron.exe` 以维持 Electron 的未打包开发模式。`start-studio.ps1 -SkipBuild` 改用 `node --import=tsx` 直接启动，避免当前 pnpm 的交互式重装提示。已核验私有 exe 可运行 Electron 44.0.0、PE 含 9 个图标尺寸与正确产品名；桌面图标/安装器/主进程专项 119/119 通过、桌面端构建通过。开发版重新启动后，进程路径指向私有品牌 exe，实际窗口加载成功并保留课程列表。未调用模型 API。
+- 新增根目录 `start.bat`，双击后从自身所在目录隐藏启动 `start-studio.ps1 -SkipBuild`；批处理窗口随即关闭，桌面应用继续运行。路径带空格时也通过引号正确传入；启动前检查 PowerShell 脚本是否存在。已用 `cmd.exe /c start.bat` 实测返回码 0，品牌版 Electron 进程启动，Better Learning Studio 主窗口正常显示；未调用模型 API。

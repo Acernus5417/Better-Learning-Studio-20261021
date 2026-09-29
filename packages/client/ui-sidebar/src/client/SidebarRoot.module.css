@@ -298,6 +298,13 @@
   white-space: nowrap;
 }
 
+.studioBrandName {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
 .localBuildBrand {
   flex: none;
   display: inline-flex;

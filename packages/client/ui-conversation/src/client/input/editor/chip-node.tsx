@@ -9,9 +9,9 @@
  */
 import type { JSX } from 'react'
 import type {
-  EditorConfig, LexicalNode, NodeKey, SerializedLexicalNode, Spread,
+  EditorConfig, LexicalEditor, LexicalNode, NodeKey, SerializedLexicalNode, Spread,
 } from 'lexical'
-import { DecoratorNode } from 'lexical'
+import { $getNodeByKey, DecoratorNode } from 'lexical'
 import type { ReferenceInsert } from '../../contract/draft-editor.ts'
 import { ReferenceChip } from './ReferenceChip.tsx'
 
@@ -22,6 +22,7 @@ export type SerializedReferenceChipNode = Spread<{
   label: string
   appearance?: ReferenceInsert['appearance']
   clipboardText: string
+  removeLabel?: string
   invalid: boolean
 }, SerializedLexicalNode>
 
@@ -37,6 +38,7 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
   __appearance: ReferenceInsert['appearance']
   /** Clipboard / persistence projection, e.g. `/name` (never the model form). */
   __clipboardText: string
+  __removeLabel: string | undefined
   /** Owner-resolution failure flag: chip renders invalid; serialization must fail. */
   __invalid: boolean
 
@@ -58,6 +60,7 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
         label: node.__label,
         appearance: node.__appearance,
         clipboardText: node.__clipboardText,
+        ...(node.__removeLabel === undefined ? {} : { removeLabel: node.__removeLabel }),
       },
       node.__invalid,
       node.__key,
@@ -77,6 +80,7 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
         label: json.label,
         appearance: json.appearance,
         clipboardText: json.clipboardText,
+        ...(json.removeLabel === undefined ? {} : { removeLabel: json.removeLabel }),
       },
       json.invalid,
     )
@@ -94,6 +98,7 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
     this.__label = insert.label
     this.__appearance = insert.appearance
     this.__clipboardText = insert.clipboardText
+    this.__removeLabel = insert.removeLabel
     this.__invalid = invalid
   }
 
@@ -108,6 +113,7 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
       label: this.__label,
       ...(this.__appearance === undefined ? {} : { appearance: this.__appearance }),
       clipboardText: this.__clipboardText,
+      ...(this.__removeLabel === undefined ? {} : { removeLabel: this.__removeLabel }),
       invalid: this.__invalid,
     }
   }
@@ -184,12 +190,17 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
   }
 
   /** React face rendered into the host element by the decorator portal. */
-  override decorate(): JSX.Element {
+  override decorate(editor: LexicalEditor): JSX.Element {
+    const nodeKey = this.__key
+    const onRemove = this.__removeLabel === undefined ? undefined
+      : () => { editor.update(() => { const node = $getNodeByKey(nodeKey); if ($isReferenceChipNode(node)) node.remove() }) }
     return (
       <ReferenceChip
         label={this.__label}
         appearance={this.__appearance}
         invalid={this.__invalid}
+        onRemove={onRemove}
+        removeLabel={this.__removeLabel}
       />
     )
   }

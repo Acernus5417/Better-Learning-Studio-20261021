@@ -37,6 +37,17 @@ export const zh = {
   'error.outsideWorkspace': '这个目录在工作区之外，侧栏不会读取它。',
   'error.notDirectory': '这不是一个目录。',
   'error.unavailable': '读取失败：{message}',
+  'courseProgress.waiting': '等待课程资料',
+  'courseProgress.multiple': '工作区内有多门课程，请分别打开',
+  'courseProgress.intake': '确认学习需求',
+  'courseProgress.needs_update': '等待重新确认资料',
+  'courseProgress.working': '课程未完成',
+  'courseProgress.complete': '课程已完成',
+  'courseProgress.other': '课程处理中',
+  'courseProgress.chapters': '已完成 {count} 章',
+  'courseProgress.lessons': '已完成 {count} 节',
+  'courseProgress.blockers': '{count} 项异常待处理',
+  'courseProgress.readFailed': '课程进度读取失败',
 } satisfies Record<string, string>
 
 /** Files dictionary key union. */
@@ -61,4 +72,15 @@ export const en = {
   'error.outsideWorkspace': 'That directory is outside the workspace, so the sidebar will not read it.',
   'error.notDirectory': 'That is not a directory.',
   'error.unavailable': 'Read failed: {message}',
+  'courseProgress.waiting': 'Waiting for course materials',
+  'courseProgress.multiple': 'Open each course in its own workspace',
+  'courseProgress.intake': 'Confirm learning needs',
+  'courseProgress.needs_update': 'Confirm updated materials',
+  'courseProgress.working': 'Course incomplete',
+  'courseProgress.complete': 'Course complete',
+  'courseProgress.other': 'Course in progress',
+  'courseProgress.chapters': '{count} chapters complete',
+  'courseProgress.lessons': '{count} lessons complete',
+  'courseProgress.blockers': '{count} issues need attention',
+  'courseProgress.readFailed': 'Could not read course progress',
 } satisfies Record<SidebarFilesKey, string>

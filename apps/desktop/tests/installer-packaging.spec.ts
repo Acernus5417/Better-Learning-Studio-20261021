@@ -40,12 +40,20 @@ describe('installer preparation preserves application dependencies', () => {
       const aboutIcon = config.extraResources.find(resource => resource.to === 'icon.png')
       expect(aboutIcon).toBeDefined()
       expect(readFileSync(aboutIcon!.from)).toEqual(readFileSync(new URL('../resources/icon-windows.png', import.meta.url)))
+      const browserIcon = config.extraResources.find(resource => resource.to === 'icon.svg')
+      expect(browserIcon).toBeDefined()
+      expect(readFileSync(browserIcon!.from)).toEqual(readFileSync(new URL('../resources/icon-windows.svg', import.meta.url)))
       // Only the Windows package carries the tray bitmaps; macOS keeps the Dock.
       const trayIcon = config.extraResources.find(resource => resource.to === 'tray.ico')
       if (platform === 'win32') {
         expect(readFileSync(trayIcon!.from)).toEqual(readFileSync(new URL('../resources/tray-windows.ico', import.meta.url)))
+        const appIcon = config.extraResources.find(resource => resource.to === 'icon.ico')
+        expect(appIcon).toBeDefined()
+        expect(config.win.icon).toBe(appIcon!.from)
+        expect(readFileSync(appIcon!.from)).toEqual(readFileSync(new URL('../resources/icon-windows.ico', import.meta.url)))
       } else {
         expect(trayIcon).toBeUndefined()
+        expect(config.extraResources.some(resource => resource.to === 'icon.ico')).toBe(false)
       }
       const packager = new Packager({ projectDir: tmpdir() })
       // A foreign source-build target avoids rebuilding modules; the real dependency ownership decision still runs.
@@ -74,7 +82,7 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.artifactName).toBe('better-learning-studio-${version}-${os}-${arch}-unsigned.${ext}')
   })
 
   it('packages every preload entry point the shell loads', async () => {

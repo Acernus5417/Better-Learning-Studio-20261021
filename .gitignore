@@ -32,10 +32,13 @@ mise.toml
 dist-exe/
 /dist/
 apps/desktop/.desktop-build/
+.desktop-cache/
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/
 python/**/__pycache__/
 python/**/.pytest_cache/
 packages/**/__pycache__/
+__pycache__/
+*.pyc
 apps/web/dist/
 .artifacts/
 .dsh-build/

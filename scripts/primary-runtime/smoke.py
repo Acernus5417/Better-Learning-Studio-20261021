@@ -19,6 +19,8 @@ from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches
+from pypdf import PdfReader, PdfWriter
+import pypdfium2
 
 
 def main():
@@ -45,6 +47,21 @@ def main():
         Image.new("RGB", (80, 40), "#2878bc").save(image)
         with Image.open(image) as restored:
             assert restored.size == (80, 40)
+
+        pdf = root / "sample.pdf"
+        writer = PdfWriter()
+        writer.add_blank_page(width=120, height=90)
+        with pdf.open("wb") as stream:
+            writer.write(stream)
+        assert len(PdfReader(str(pdf)).pages) == 1
+        rendered = pypdfium2.PdfDocument(str(pdf))
+        assert len(rendered) == 1
+        page = rendered[0]
+        bitmap = page.render(scale=1)
+        assert bitmap.to_pil().size == (120, 90)
+        bitmap.close()
+        page.close()
+        rendered.close()
 
         document = Document()
         document.add_heading("Office 文档", 0)

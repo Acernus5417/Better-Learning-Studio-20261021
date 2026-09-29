@@ -62,5 +62,6 @@ export interface WelcomeAuthentication {
  * @returns true only when neither authentication route is configured.
  */
 export function needsWelcome(authentication: WelcomeAuthentication): boolean {
+  if ((process.env as Record<string, string | undefined>).BLS_STUDIO === '1') return false
   return !authentication.loggedIn && !authentication.hasApiKey
 }

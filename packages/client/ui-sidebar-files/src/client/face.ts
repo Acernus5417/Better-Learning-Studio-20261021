@@ -114,6 +114,8 @@ export function childPath(parent: string, name: string): string {
 
 /** The tree's injected business face, as the body receives it. */
 export interface FilesInjected {
+  /** Read the skill's durable course state for the compact desktop status strip. */
+  readonly readCourseProgress: (sessionId: SessionId, root: string, signal: AbortSignal) => Promise<CourseProgressResult>
   /** Refresh the open directory tree. @param tabId - owning tab. */
   readonly refresh: (tabId: TabId) => void
   /** Control automatic rereads without closing watches. @param tabId - owning tab. @param enabled - automatic-refresh setting. */
@@ -143,6 +145,76 @@ export interface FilesInjected {
   readonly toggle: (tabId: TabId, parentPath: string, path: string, expanded: readonly string[], signal: AbortSignal) => void
 }
 
+/** Only the fields needed to display course-wide status; the skill owns the full file. */
+export interface CourseProgressState {
+  readonly stage: string
+  readonly completedChapters: number
+  readonly completedLessons: number
+  readonly blockers: number
+  readonly nextAction: string | undefined
+}
+
+export type CourseProgressResult =
+  | { readonly kind: 'waiting' | 'failed' | 'multiple' }
+  | { readonly kind: 'ready'; readonly value: CourseProgressState }
+
+/** Read the skill-owned checkpoint without taking ownership of its schema. */
+export function createCourseProgressReader(remote: ClientRemote): FilesInjected['readCourseProgress'] {
+  return async (sessionId, root, signal) => {
+    const readAt = async (prefix: string): Promise<CourseProgressResult | null> => {
+      const result = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/生成进度.json`, {}, signal)
+      if (!result.ok) return result.error.code === 'workspace-file/not-found' ? null : { kind: 'failed' }
+      if (!result.value.eof) return { kind: 'failed' }
+      try {
+        const value: unknown = JSON.parse(result.value.text)
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) return { kind: 'failed' }
+        const state = value as Record<string, unknown>
+        let stage = typeof state.stage === 'string' ? state.stage : 'other'
+        // Older skill runs left the progress stage at "working" after a
+        // successful packaged validation. The receipt is the stronger gate.
+        if (stage !== 'complete') {
+          const receipt = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/打包检查.json`, {}, signal)
+          if (receipt.ok && receipt.value.eof) {
+            try {
+              const report: unknown = JSON.parse(receipt.value.text)
+              if (typeof report === 'object' && report !== null && !Array.isArray(report)) {
+                const check = report as Record<string, unknown>
+                if (check.mode === 'packaged' && check.passed === true) stage = 'complete'
+              }
+            } catch { /* A malformed receipt cannot supersede the progress file. */ }
+          }
+        }
+        return {
+          kind: 'ready',
+          value: {
+            stage,
+            completedChapters: Array.isArray(state.completed_chapters) ? state.completed_chapters.length : 0,
+            completedLessons: Array.isArray(state.completed_lessons) ? state.completed_lessons.length : 0,
+            blockers: Array.isArray(state.blockers) ? state.blockers.length : 0,
+            nextAction: stage === 'complete' ? undefined
+              : typeof state.next_action === 'string' ? state.next_action.trim() || undefined : undefined,
+          },
+        }
+      } catch {
+        return { kind: 'failed' }
+      }
+    }
+
+    const direct = await readAt('')
+    if (direct) return direct
+    // A new course may be created as the only child of the selected workspace.
+    // Show its checkpoint without guessing when several courses share a root.
+    const listing = await remote.workspaceFiles.list(sessionId, root, signal)
+    if (!listing.ok || listing.value.truncated) return { kind: 'failed' }
+    const directories = listing.value.entries.filter(entry => entry.type === 'directory' && entry.name !== '_工作区')
+    if (directories.length > 16) return { kind: 'multiple' }
+    const states = await Promise.all(directories.map(entry => readAt(`${entry.name}/`)))
+    const courses = states.filter((state): state is CourseProgressResult => state !== null)
+    if (courses.length > 1) return { kind: 'multiple' }
+    return courses[0] ?? { kind: 'waiting' }
+  }
+}
+
 /**
  * Bind the tree's face to one directory listing.
  * @param list - the bound `workspaceFiles.list` call.
@@ -152,11 +224,11 @@ export interface FilesInjected {
 export function filesFace(
   list: ListWorkspaceDirectory,
   watch: WatchWorkspaceDirectory,
-): (sessionId: SessionId, actions: BoundActions<ReturnType<typeof createFilesStore>>) => FilesInjected {
+): (sessionId: SessionId, actions: BoundActions<ReturnType<typeof createFilesStore>>) => Omit<FilesInjected, 'readCourseProgress'> {
   return (
     sessionId: SessionId,
     actions: BoundActions<ReturnType<typeof createFilesStore>>,
-  ): FilesInjected => {
+  ): Omit<FilesInjected, 'readCourseProgress'> => {
     /** Per tab, per absolute path: the listing generation a settlement must match; the latest request wins. */
     const generations = new Map<TabId, Map<string, number>>()
     const roots = new Map<TabId, DirectoryNode>()

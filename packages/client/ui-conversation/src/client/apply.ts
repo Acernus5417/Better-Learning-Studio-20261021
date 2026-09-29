@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { ISessions, SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
-import { IconPaperclipOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconFolderOpenOutlineRegular, IconPaperclipOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { createSnapshotStore, type BoundActions } from '@deepseek-ai/dsh-client-store'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -276,6 +276,39 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       available: session => inputHub.canPickFiles(session.sessionId),
       ui: { kind: 'action', run: (session) => { inputHub.pickFiles(session.sessionId) } },
     }), 'ui-conversation: File action')
+    if (process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning') {
+      scope.effect(() => commands.register({
+        name: 'folder',
+        label: () => t('input.folder'),
+        icon: IconFolderOpenOutlineRegular,
+        available: session => inputHub.canPickFiles(session.sessionId)
+          && (globalThis as { __DSH_DIRECTORY_PICKER__?: { pick(): Promise<string | null> } }).__DSH_DIRECTORY_PICKER__ !== undefined,
+        ui: { kind: 'action', run: (session) => {
+          void (async () => {
+            const picker = (globalThis as { __DSH_DIRECTORY_PICKER__?: { pick(): Promise<string | null> } }).__DSH_DIRECTORY_PICKER__
+            const path = await picker?.pick()
+            if (path === null || path === undefined || !inputHub.canPickFiles(session.sessionId)) return
+            const cwd = sessions.list.getSnapshot().byId[session.sessionId]?.cwd
+            const relative = relativizeToCwd(path, cwd)
+            const ref = formatFileMention({ path: `${relative}/`, kind: 'file' }, false)
+            if (ref === undefined) {
+              inputHub.shell(session.sessionId).notify('error', t('attachment.pathUnsupported'))
+              return
+            }
+            const shell = inputHub.shell(session.sessionId)
+            shell.addFiles([{
+              source: 'reference', ref, label: `${workspaceTitleOf(path)}/`,
+              appearance: 'folder', clipboardText: ref,
+              removeLabel: t('attachment.remove', { name: `${workspaceTitleOf(path)}/` }),
+            }], [])
+          })().catch(() => {
+            if (inputHub.canPickFiles(session.sessionId)) {
+              inputHub.shell(session.sessionId).notify('error', t('attachment.pathUnavailable'))
+            }
+          })
+        } },
+      }), 'ui-conversation: Folder action')
+    }
   })
 
   // Conversation assembly and input share the Session binding lifecycle. The
@@ -481,6 +514,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
             references.push({
               source: 'reference', ref: mention, label: directory ? `${label}/` : label,
               appearance: directory ? 'folder' : 'file', clipboardText: mention,
+              removeLabel: t('attachment.remove', { name: directory ? `${label}/` : label }),
             })
           }
           try {

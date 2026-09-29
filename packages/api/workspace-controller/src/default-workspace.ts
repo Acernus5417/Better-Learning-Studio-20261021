@@ -8,12 +8,12 @@
 
 /**
  * Leaf directory name of the first-use Workspace under
- * `<Documents>/deepseek-harness`. Language-neutral, so one installation keeps
+ * `<Documents>/Better Learning Studio`. Language-neutral, so one installation keeps
  * one on-disk path across language switches. The registry derives the initial
  * title from this same segment, which is the title
  * {@link workspaceDisplayTitle} recognizes as automatic.
  */
-export const DEFAULT_WORKSPACE_DIRECTORY = 'default-workspace'
+export const DEFAULT_WORKSPACE_DIRECTORY = 'Courses'
 
 /**
  * The text one Workspace is labeled with. A Workspace still carrying the
@@ -26,5 +26,5 @@ export const DEFAULT_WORKSPACE_DIRECTORY = 'default-workspace'
  * @returns the title to display.
  */
 export function workspaceDisplayTitle(title: string, localizedDefault: string): string {
-  return title === DEFAULT_WORKSPACE_DIRECTORY ? localizedDefault : title
+  return title === DEFAULT_WORKSPACE_DIRECTORY || title === 'default-workspace' ? localizedDefault : title
 }

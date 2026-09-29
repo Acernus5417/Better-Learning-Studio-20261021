@@ -25,6 +25,22 @@
   white-space: nowrap;
 }
 
+.remove {
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.remove:hover {
+  opacity: 1;
+}
+
 .invalid {
   color: var(--dsw-alias-state-error-primary);
   text-decoration: line-through;

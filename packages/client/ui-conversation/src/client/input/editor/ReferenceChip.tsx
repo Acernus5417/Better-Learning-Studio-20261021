@@ -17,6 +17,9 @@ export interface ReferenceChipProps {
   readonly appearance?: ReferenceIconKind | undefined
   /** Owner-resolution failure styling bit. */
   readonly invalid: boolean
+  /** Visible removal affordance for pending file and folder attachments. */
+  readonly onRemove?: (() => void) | undefined
+  readonly removeLabel?: string | undefined
 }
 
 /**
@@ -24,13 +27,21 @@ export interface ReferenceChipProps {
  * @param props - label, optional domain glyph, and the invalid bit.
  * @returns the chip body (icon + truncating label).
  */
-export function ReferenceChip({ label, appearance, invalid }: ReferenceChipProps): ReactNode {
+export function ReferenceChip({ label, appearance, invalid, onRemove, removeLabel }: ReferenceChipProps): ReactNode {
   return (
     <span className={clsx(referenceCss.reference, css.chip, appearance === 'file' && !invalid && referenceCss.openable, invalid && css.invalid)} title={label}>
       {appearance === undefined
         ? <span className={css.marker} aria-hidden>@</span>
         : <ReferenceIconRegular kind={appearance} size={14} className={css.icon} />}
       <span className={css.label}>{label}</span>
+      {onRemove === undefined || removeLabel === undefined ? null : <button
+        type="button"
+        className={css.remove}
+        aria-label={removeLabel}
+        title={removeLabel}
+        onMouseDown={(event) => { event.preventDefault(); event.stopPropagation() }}
+        onClick={(event) => { event.preventDefault(); event.stopPropagation(); onRemove() }}
+      >×</button>}
     </span>
   )
 }

@@ -416,6 +416,7 @@ afterEach(async () => {
 describe('desktop main startup', () => {
   it('routes shell update documents and assets through the registered main protocol handler', async () => {
     const root = join(import.meta.dirname, '..')
+    harness.app.isPackaged = false
     vi.spyOn(harness.app, 'getAppPath').mockReturnValue(root)
     const web = await import('../src/web-document.ts')
     const actual = await vi.importActual<typeof import('../src/web-document.ts')>('../src/web-document.ts')
@@ -438,6 +439,12 @@ describe('desktop main startup', () => {
       const head = await handler(new Request('dsh-app://shell/update-dialog.html', { method: 'HEAD' }))
       expect(head.status).toBe(200)
       expect(await head.text()).toBe('')
+      for (const name of ['favicon.svg', 'favicon-dark.svg']) {
+        const response = await handler(new Request(`dsh-app://app/${name}`))
+        expect(response.headers.get('content-type')).toBe('image/svg+xml')
+        expect(await response.text()).toBe(readFileSync(join(root, 'resources', 'icon-windows.svg'), 'utf8'))
+        expect((await handler(new Request(`dsh-app://app/${name}`, { method: 'POST' }))).status).toBe(405)
+      }
       expect((await handler(new Request('dsh-app://shell/update-dialog.html', { method: 'POST' }))).status).toBe(405)
       expect((await handler(new Request('dsh-app://shell/%'))).status).toBe(400)
       expect((await handler(new Request('dsh-app://shell/%2e%2e%2fpackage.json'))).status).toBe(403)
@@ -491,6 +498,11 @@ describe('desktop main startup', () => {
       .toEqual(expected[`${platform}:${locale}`])
     expect(options.iconPath).toBe(packaged ? join('desktop-test-resources', 'icon.png')
       : join('desktop-test-app', 'resources', 'icon-windows.png'))
+    if (platform === 'win32') {
+      expect(harness.windows[0]!.options).toHaveProperty('icon', packaged
+        ? join('desktop-test-resources', 'icon.ico')
+        : join('desktop-test-app', 'resources', 'icon-windows.ico'))
+    } else expect(harness.windows[0]!.options).not.toHaveProperty('icon')
     if (platform !== 'win32') { expect(about!.click).toBeUndefined(); return }
     // Windows reuses the dimmed update dialog because Electron's fallback is a bare message box.
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
@@ -498,7 +510,7 @@ describe('desktop main startup', () => {
     await vi.advanceTimersByTimeAsync(0)
     const zh = locale === 'zh-CN'
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({
-      type: 'info', title: zh ? '关于 DeepSeek Harness' : 'About DeepSeek Harness', message: 'DeepSeek Harness',
+      type: 'info', title: zh ? '关于 Better Learning Studio' : 'About Better Learning Studio', message: 'Better Learning Studio',
       detail: zh ? '版本 V1.0.0' : 'Version V1.0.0', buttons: [zh ? '确定' : 'OK'], cancelId: 0,
     }))
     // A dialog that cannot open is logged, not surfaced as an unhandled rejection.
@@ -820,7 +832,7 @@ describe('desktop main startup', () => {
     expect(() => handler(event, 'application', NaN, 34)).toThrow('invalid popup request')
     const application = handler(event, 'application', 48, 34)
     expect(harness.menu.buildFromTemplate.mock.lastCall![0].map(item => item.label ?? item.type)).toEqual([
-      '关于 DeepSeek Harness', 'separator', '检查更新…', 'separator', '退出',
+      '关于 Better Learning Studio', 'separator', '检查更新…', 'separator', '退出',
     ])
     expect(harness.popup.mock.lastCall![0]).toMatchObject({ window, x: 48, y: 34 })
     expect(harness.popup.mock.lastCall![0].callback).toBeTypeOf('function')

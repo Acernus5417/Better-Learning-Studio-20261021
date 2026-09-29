@@ -410,6 +410,15 @@ describe('candidates', () => {
       expect(rows[8]).toEqual({ name: 'deploy', description: 'third-party command', section: 'command:section.commands' })
     })
 
+    it('places the folder attachment action beside the file action', async () => {
+      const { command, source } = await bench({ commands: () => Promise.resolve({ commands: SHIPPED }) })
+      command.register(fileContribution())
+      command.register({ ...fileContribution(), name: 'folder' })
+      const rows = await source.candidates(proj('s1'), req(''))
+      expect(rows.slice(0, 3).map(row => row.name)).toEqual(['file', 'folder', 'goal'])
+      expect(rows[1]?.section).toBe('command:section.add')
+    })
+
     it('a same-name override keeps its own presentation even when it copies the first-party description', async () => {
       const commands: CommandDescriptor[] = [{ name: 'goal', description: en['description.goal'], input: { hint: 'x' } }]
       const { source } = await bench({ commands: () => Promise.resolve({ commands }) })

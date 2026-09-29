@@ -37,7 +37,18 @@ export async function downloadPrimaryRuntimeAsset(url: string, sha256: string, c
 async function pythonArchive(target: keyof typeof lock.targets, cache: string): Promise<string> {
   const artifact = lock.targets[target]
   const filename = `cpython-${lock.pythonVersion}+${lock.pythonRelease}-${artifact.pythonTarget}-install_only_stripped.tar.gz`
-  return downloadPrimaryRuntimeAsset(`https://github.com/astral-sh/python-build-standalone/releases/download/${lock.pythonRelease}/${encodeURIComponent(filename)}`, artifact.pythonSha256, cache)
+  const encoded = encodeURIComponent(filename)
+  const mirror = `https://registry.npmmirror.com/-/binary/python-build-standalone/${lock.pythonRelease}/${encoded}`
+  try {
+    return await downloadPrimaryRuntimeAsset(mirror, artifact.pythonSha256, cache)
+  } catch (mirrorError) {
+    const source = `https://github.com/astral-sh/python-build-standalone/releases/download/${lock.pythonRelease}/${encoded}`
+    try {
+      return await downloadPrimaryRuntimeAsset(source, artifact.pythonSha256, cache)
+    } catch (sourceError) {
+      throw new AggregateError([mirrorError, sourceError], `primary runtime download: failed for ${filename}`)
+    }
+  }
 }
 
 /**
