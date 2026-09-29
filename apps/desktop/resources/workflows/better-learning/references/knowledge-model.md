@@ -37,8 +37,8 @@ v2 课程的 `_工作区/课程配置.json` 至少含：`link_mode: obsidian`、
 读分片或整理知识时不要用"缩小页数反复重读"的方式；用分片读取命令按字数预算取正文，避免终端输出被截断：
 
 ```text
-python -X utf8 SKILL/scripts/assemble_knowledge.py --course COURSE --excerpt --index
-python -X utf8 SKILL/scripts/assemble_knowledge.py --course COURSE --excerpt --chapter KC-001 --part 1 --max-chars 20000
+python -X utf8 <scriptsRoot>/assemble_knowledge.py --course COURSE --excerpt --index
+python -X utf8 <scriptsRoot>/assemble_knowledge.py --course COURSE --excerpt --chapter KC-001 --part 1 --max-chars 20000
 # 也可 --out _工作区/_tmp_读入.md 落盘后再读
 ```
 
@@ -96,7 +96,7 @@ status：covered、duplicate、non_teaching、unreadable、unresolved。covered/
 ## 完整合并
 
 ```text
-python SKILL/scripts/assemble_knowledge.py --course COURSE
+python <scriptsRoot>/assemble_knowledge.py --course COURSE
 ```
 
 只合并标记 complete 的章节；默认遇到未完成章节拒绝写完整汇编。`--allow-partial` 仅用于显式的中间检查，输出标记“未完成”，不能据此交付完整课程。知识正文完整保留，不再次摘要。v2 合并会校验分片中的 `BL-K` 集合与知识索引一致（缺失或多出都拒绝），再追加 `BL-CHAPTER` 与 `IDX-KNOWLEDGE` 容器，最后重新渲染关系区；分片是维护来源，`知识内容.md` 是可重建的完整视图；修改知识先改分片和索引，再重建总文件。附件用 Obsidian embed，知识位置使用稳定块 ID 而非 heading。脚本运行后会同步刷新注册表与 `_工作区/链接映射.json`。
@@ -132,8 +132,8 @@ v2 派生与位置数据都由脚本维护，模型不手改：
 先建立章节知识分片与知识索引（本例外路径的条目全部 kind=ai_supplement），再运行：
 
 ```text
-python -X utf8 SKILL/scripts/assemble_knowledge.py --course COURSE --ai-request _工作区/用户AI补全请求.md
-python -X utf8 SKILL/scripts/assemble_knowledge.py --course COURSE --check
+python -X utf8 <scriptsRoot>/assemble_knowledge.py --course COURSE --ai-request _工作区/用户AI补全请求.md
+python -X utf8 <scriptsRoot>/assemble_knowledge.py --course COURSE --check
 ```
 
 --ai-request 只是记录已经获得的用户明确指令，不能自行创建请求文件冒充授权。它不解锁原件转写、不清除待核实状态，也不让原资料完整性验收变为通过。脚本保存请求版本用于写作前核查。必须以生成的知识内容.md为核心，再规划路径、写讲义与卡片；没有用户授权、知识分片未完成或知识库未生成时不得继续。正常资料路径不使用该选项。

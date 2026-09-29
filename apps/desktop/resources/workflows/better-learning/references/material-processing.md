@@ -31,7 +31,7 @@ DOCX/PPTX 中的可解码单帧栅格图片规范化为 PNG；多帧或矢量嵌
 材料返工前先跑一次只读全景诊断，把"每查询一次改一个脚本"变成一次输出：
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE diagnose
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE diagnose
 ```
 
 输出维度：每单元的**代码围栏开合与行号**、切片边界是否落在围栏内、被转义的保留标记（`<!-- BL-`、`^ID`）数量、**无法解析的媒体引用**（单元 → 引用路径）、`pending/blocked/failed` 单元与尝试次数、每单元字符与字节数、已有 `transforms` 记录。据此一次性决定修复方案，不要把同一诊断拆成多轮。

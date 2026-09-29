@@ -47,18 +47,35 @@ function scriptEnvironment(): NodeJS.ProcessEnv {
     !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name))), PYTHONDONTWRITEBYTECODE: '1' }
 }
 
-/** Run one owned materials-ledger command without exposing process credentials. */
+type CourseScript = 'convert_materials.py' | 'assemble_knowledge.py' | 'lesson_tasks.py'
+  | 'core_cards.py' | 'obsidian_links.py' | 'validate_package.py'
+
+/** Run one application-owned mechanical command without exposing process credentials. */
+export async function runCourseScript(
+  runtime: CourseVerifierRuntime, course: string, script: CourseScript, args: readonly string[],
+): Promise<Record<string, unknown>> {
+  let stdout: string
+  try {
+    ({ stdout } = await execute(runtime.python, [join(runtime.scripts, script), '--course', course, ...args], {
+      windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024, env: scriptEnvironment(),
+    }))
+  } catch (error) {
+    const report = record(error) && typeof error.stdout === 'string' && error.stdout.trim() !== ''
+      ? error.stdout.trim().slice(0, 4000) : error instanceof Error ? error.message : String(error)
+    throw new Error(`course script: ${script} failed: ${report}`)
+  }
+  const value: unknown = JSON.parse(stdout)
+  if (!record(value) || value.error !== undefined || (Array.isArray(value.errors) && value.errors.length > 0)) {
+    throw new Error(`course script: ${script} returned an invalid or rejected result`)
+  }
+  return value
+}
+
+/** Run the native transcription ledger script. */
 export async function runCourseMaterials(
   runtime: CourseVerifierRuntime, course: string, args: readonly string[],
 ): Promise<Record<string, unknown>> {
-  const { stdout } = await execute(runtime.python, [join(runtime.scripts, 'convert_materials.py'), '--course', course, ...args], {
-    windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024, env: scriptEnvironment(),
-  })
-  const value: unknown = JSON.parse(stdout)
-  if (!record(value) || value.error !== undefined || (Array.isArray(value.errors) && value.errors.length > 0)) {
-    throw new Error(`course materials: ${args[0] ?? 'command'} returned an invalid or rejected result`)
-  }
-  return value
+  return runCourseScript(runtime, course, 'convert_materials.py', args)
 }
 
 async function accepted(runtime: CourseVerifierRuntime, course: string, script: string, args: string[]): Promise<boolean> {

@@ -5,8 +5,8 @@
 ## 1. 盘点与前置探针
 
 ```text
-python -X utf8 SKILL/scripts/inventory_materials.py --course COURSE INPUT...
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE probe-start --host dsh --model ACTUAL_MODEL
+python -X utf8 <scriptsRoot>/inventory_materials.py --course COURSE INPUT...
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE probe-start --host dsh --model ACTUAL_MODEL
 ```
 
 探针独立保存在 `_工作区/能力探针/current.json`，无需 prepare。PDF、图片或可能有图形的 Office/电子书先做探针，再进行大量渲染。仅有可靠 TXT/CSV/无图 Markdown 的课程可直接 prepare，不需要视觉模型。若后续路由发现视觉任务，必须在 dispatch 前通过探针。
@@ -14,7 +14,7 @@ python -X utf8 SKILL/scripts/convert_materials.py --course COURSE probe-start --
 主代理将探针提示词交给相同宿主和实际模型的新成员，不打开测试图、不读取预期答案。成员实际看随机测试图并保存三行转写 JSON。结束后：
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE probe --member REAL_MEMBER --host dsh --model ACTUAL_MODEL
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE probe --member REAL_MEMBER --host dsh --model ACTUAL_MODEL
 ```
 
 宿主/模型改变必须重新探测；旧成员需先确认停止并释放租约。只写 ok、声称支持图片或能调用看图工具均不能替代真实挑战。失败立即停止，说明原因并建议更换支持视觉转写的模型，不得从目录、文件名或常识编写课程。用户明确授权 AI 补全时仍须先生成知识内容.md，并标明原件未读。探针通过只证明基础能力，不保证复杂教材识别正确。
@@ -22,7 +22,7 @@ python -X utf8 SKILL/scripts/convert_materials.py --course COURSE probe --member
 ## 2. 增量准备与路由
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE prepare --max-concurrent 4 --strict-cost-threshold 12000
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE prepare --max-concurrent 4 --strict-cost-threshold 12000
 ```
 
 默认普通视觉页 bounded，每个成员最多 5 页；默认并发 4（即一批同时派发的成员数），可配置 1..8，并按当前宿主实际可用容量下调。每批按目标宿主新建**全新上下文**的成员，批内仍累积历史，不承诺固定 Token 成本。
@@ -48,7 +48,7 @@ Office chart、SmartArt、组合形状、连接线、矢量几何、浮动图形
 ## 3. 整批派发与整批收口
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE pump --host dsh --model ACTUAL_MODEL
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE pump --host dsh --model ACTUAL_MODEL
 ```
 
 调度以**批次**为单位：一次 pump 预约一整批，批内不补位，本批全部成员确认停止并 collect 后才允许下一次 pump。
@@ -60,7 +60,7 @@ pump 在调度锁内按优先级预约：strict 升级 → 基础设施故障重
 主代理立即对每个 ticket 的 bootstrap 新建可写、fresh-context 成员（Codex 显式 fork_turns="none"），再登记真实 ID：
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE mark-running --attempt A-ID --agent-id REAL_ID
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE mark-running --attempt A-ID --agent-id REAL_ID
 ```
 
 主代理不读 task.json、不转发完整任务清单，不看图；成员自读任务和 [转写策略](worker-policy.md)。成员按单元落盘 Markdown 与 `.result.json` sidecar，状态与教材原文分离。strict 必须列全 manifest 的 tile ID，不能只读 overview 就完成。正式文件仍只由 collect 提交。
@@ -68,7 +68,7 @@ python -X utf8 SKILL/scripts/convert_materials.py --course COURSE mark-running -
 任一成员返回并通过宿主确认停止后：
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE collect --attempt A-ID --stopped-agent-id REAL_ID
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE collect --attempt A-ID --stopped-agent-id REAL_ID
 ```
 
 collect 验证本次输出、sidecar、来源及资源哈希，只将 complete 原子提交。uncertain/unreadable 保留暂存证据、升级单页 strict，记录 parent_attempt_id。**collect 不再返回 refill tickets**：失败与未完成单元进入下一批，由下一次 pump 统一预约。
@@ -86,9 +86,9 @@ collect 验证本次输出、sidecar、来源及资源哈希，只将 complete �
 派发首批之前，主代理启动一个**独立于主代理的进程**：
 
 ```text
-python -X utf8 SKILL/scripts/watchdog.py --course COURSE start --host dsh --interval 90
-python -X utf8 SKILL/scripts/watchdog.py --course COURSE status
-python -X utf8 SKILL/scripts/watchdog.py --course COURSE stop
+python -X utf8 <scriptsRoot>/watchdog.py --course COURSE start --host dsh --interval 90
+python -X utf8 <scriptsRoot>/watchdog.py --course COURSE status
+python -X utf8 <scriptsRoot>/watchdog.py --course COURSE stop
 ```
 
 - 每 90 秒（1 分 30 秒，`--interval` 可配）向主代理投递一条提醒：**`检查子agent是否正常工作`**，后附纯元数据（活动成员数、待处理单元数、本批编号、每个 attempt 的已运行秒数与静默秒数、疑似无进展的 attempt）。
@@ -103,14 +103,14 @@ python -X utf8 SKILL/scripts/watchdog.py --course COURSE stop
 明确宿主未创建成员时释放预约：
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE fail-attempt --attempt A-ID --kind SPAWN_FAILURE
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE fail-attempt --attempt A-ID --kind SPAWN_FAILURE
 ```
 
 若启动结果不确定，不得假称启动失败；先查询宿主，找到成员就登记其 ID，再确认停止。运行中的故障必须携带已确认停止的 ID，例如：
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE fail-attempt --attempt A-ID --kind TEMP_TOOL_FAILURE --stopped-agent-id REAL_ID
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE recover --attempt A-ID --stopped-agent-id REAL_ID
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE fail-attempt --attempt A-ID --kind TEMP_TOOL_FAILURE --stopped-agent-id REAL_ID
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE recover --attempt A-ID --stopped-agent-id REAL_ID
 ```
 
 有已落盘成果优先 recover/collect，避免丢掉成功单元。重派只处理未完成项，不重复处理成功页。MEMBER_UNCERTAIN / UNREADABLE_CONTENT 的重试强制 strict 精细单页；默认每单元最多 3 次，超限 needs_review，停止自动重试。WRITE_FAILURE/INVALID_OUTPUT/临时工具故障可有限重试；ASSET_CHANGED 需重新盘点/prepare。
@@ -126,9 +126,9 @@ VISION_UNAVAILABLE 立即使探针失效，pump 不再派发新批次；ASSET_CH
 ## 5. 合成、报告与知识库
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE report
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE assemble
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE check
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE report
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE assemble
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE check
 ```
 
 JSON 台账始终是实时状态；Markdown 计划/问题报告在 prepare、阶段收尾、失败或显式 report 时更新，不在每次派发和正常收集时重写。不再生成批次分片。assemble 直接按单元顺序生成每个来源独立 Markdown，可靠文本标记 text，视觉转写标记 vision；合成器添加稳定的 `^SRC-ID-U00001` 块标识。

@@ -1,9 +1,9 @@
 # 质量验收
 
 ```text
-python SKILL/scripts/validate_package.py --course COURSE --mode staged
-python SKILL/scripts/validate_package.py --course COURSE --mode final
-python SKILL/scripts/validate_package.py --course COURSE --mode packaged
+python <scriptsRoot>/validate_package.py --course COURSE --mode staged
+python <scriptsRoot>/validate_package.py --course COURSE --mode final
+python <scriptsRoot>/validate_package.py --course COURSE --mode packaged
 ```
 
 模式固定为 `legacy-report|staged|final|packaged`，默认 `final`；v2 严格模式不接受 heading 锚点与裸文件目标。脚本生成 `_工作区/结构检查.json`（packaged 模式生成 `_工作区/打包检查.json`），退出码 0 表示结构检查通过，1 表示存在问题，2 表示无法执行。错误行统一带错误码，便于按层定位：`[CODE] file[:line] message`。模型将实际结果和内容复核写入 `质量报告.md`，不能用“脚本通过”代替教学质量证明。

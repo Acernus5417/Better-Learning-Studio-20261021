@@ -9,7 +9,7 @@
 ## 一、章级输入包
 
 ```text
-python -X utf8 SKILL/scripts/lesson_tasks.py --course COURSE prepare
+python -X utf8 <scriptsRoot>/lesson_tasks.py --course COURSE prepare
 ```
 
 每章生成 `_工作区/讲义输入/<L-ID>/task.json` 及其输入文件（学习需求、路径片段、知识片段、前置知识片段、`parts/Sxxx/`）。主代理只转发/读取这些路径；manifest 已包含 canonical link 字面量、预留 EX ID、本事务的 graph policy / registry revision、章节规范与模板的绝对路径，模型只能消费 manifest 里给出的身份与路径。
@@ -25,8 +25,8 @@ EX ID 预留数量默认为 `max(24, 6×本章知识数+12)`，可在章节索�
 按 lesson order **一次一章**：读 `task.json` → 读 [章节规范](chapter-writing.md) 与模板 → 按 sections 写片段与回执 → 写 `result.json` → `commit`。写完立即提交再进入下一章；不把多章内容同时装入对话。写作细则见 [章级写作策略](lesson-writing-policy.md)。
 
 ```text
-python -X utf8 SKILL/scripts/lesson_tasks.py --course COURSE commit --lesson L-01
-python -X utf8 SKILL/scripts/lesson_tasks.py --course COURSE status
+python -X utf8 <scriptsRoot>/lesson_tasks.py --course COURSE commit --lesson L-01
+python -X utf8 <scriptsRoot>/lesson_tasks.py --course COURSE status
 ```
 
 commit 的流程没有任何一步可以被"看起来差不多"绕过：
@@ -41,7 +41,7 @@ commit 的流程没有任何一步可以被"看起来差不多"绕过：
 草稿未写完时 commit 返回 `PARTIAL_OUTPUT`：保存有效片段的哈希与进度，整章不标记完成，缺失片段保留待补；主代理补写后再 commit，已验证片段不会被清空（哈希变了会被拒绝）。连续失败达到 `max_attempts` 转 `needs_review`。输入快照或已保存片段哈希改变时拒绝续写，须先复核处理。
 
 ```text
-python -X utf8 SKILL/scripts/lesson_tasks.py --course COURSE check
+python -X utf8 <scriptsRoot>/lesson_tasks.py --course COURSE check
 ```
 
 `check` 校验每章状态、输入新鲜度、输出哈希与提交证据；全部通过才允许进入卡片阶段。
@@ -58,17 +58,17 @@ python -X utf8 SKILL/scripts/lesson_tasks.py --course COURSE check
 同义归一是主代理的语义工作；脚本只按已确认的 concept_key 合并候选，不能自动证明两个术语同义。同一知识不得进入不同概念组。多个章节对应相同概念可合成一卡，保留所有知识去向。`exercise_ids` 必须指向 `_工作区/练习索引.jsonl` 中状态为 used、属于本卡任一知识所在讲义、且 `assesses` 与本卡知识有交集的练习；否则 `RELATION_PROVENANCE_MISSING`。
 
 ```text
-python -X utf8 SKILL/scripts/core_cards.py --course COURSE prepare
+python -X utf8 <scriptsRoot>/core_cards.py --course COURSE prepare
 ```
 
 脚本确认全部讲义有效，统一分配稳定 `KP-章-序-01` ID，保留已有 concept_key 的 ID；输出 `_工作区/核心卡片计划.json`（含 knowledge_ids、exercise_ids 与 canonical 字面量），回写知识索引的 core/card 元数据，重建 `知识内容.md` 并重新渲染关系区。主代理根据计划、[卡片规范](core-cards.md) 和 `assets/templates/core-card.md` 统一写 `核心知识点.md`，不派卡片子 Agent。
 
 ```text
-python -X utf8 SKILL/scripts/core_cards.py --course COURSE lint      # 写前/写后自查（只读）
-python -X utf8 SKILL/scripts/core_cards.py --course COURSE finalize
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE rebuild
-python -X utf8 SKILL/scripts/core_cards.py --course COURSE check
-python -X utf8 SKILL/scripts/validate_package.py --course COURSE --mode final
+python -X utf8 <scriptsRoot>/core_cards.py --course COURSE lint      # 写前/写后自查（只读）
+python -X utf8 <scriptsRoot>/core_cards.py --course COURSE finalize
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE rebuild
+python -X utf8 <scriptsRoot>/core_cards.py --course COURSE check
+python -X utf8 <scriptsRoot>/validate_package.py --course COURSE --mode final
 ```
 
 顺序不能颠倒：卡片会改变全课程的派生关系，`finalize` 先在 staged 相位渲染全课程关系，`rebuild` 再把 KP 转为 active 后的关系重渲一次。

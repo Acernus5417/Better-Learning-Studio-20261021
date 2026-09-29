@@ -100,6 +100,8 @@ describe('course API directory selection', () => {
     expect(JSON.parse((guide as { result: string }).result)).toEqual({
       section: 'overview', scriptsRoot: join(root, 'scripts'), content: '# Application policy\n',
     })
+    await expect(courseTool!.execute({ action: 'run-step', step: 'package' }, { agent } as never))
+      .rejects.toThrow('not allowed during materials')
     await mkdir(join(root, 'New'))
     await new CourseWorkflow(join(root, 'New'), async () => null).initialize()
     const proposed = await courseTool!.execute({ action: 'propose', course: 'New', summary: '目标、资料、基础' }, { agent } as never)

@@ -73,3 +73,9 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 验证：Host 与 Electron TypeScript 检查、各自 `tsdown` bundle、6 个 Host 聚焦 Vitest 文件（22 项；之后另加一个批次停止竞态测试与一个 guide 兼容测试，局部重跑通过）、聚焦 oxlint、中英文档配对、27 项随包 Python 测试通过；新位置的 `convert_materials.py --help` 用随包 Python 成功运行。Python 测试中一条 Windows 子线程出现 UTF-8 解码堆栈噪声，但总结果 27/27 与进程返回码 0。没有调用用户模型 API，也没有修改原课程产物或配置。`verify-cordis-config.ts` 上次仍被不相关的 `apps/cli/tests/profiles/acp/cordis.yml` 阻断；第三方声明预提交门槛的 `pypdf PYTHON_METADATA` 问题仍待修复。按本节新增的代码还需做最终全套聚焦测试与 Git 提交。
 
 下一步：先验证真实 Electron 开发版能装载新 `BLS_WORKFLOW_ROOT` 与专用预设，检查 `course_workflow guide` 实际注册；在隔离小课程里跑一次不花模型 token 的 `initialize` 与恢复脚本。然后审视聊天附件与课程目录绑定，把用户发起的课程目标和附件稳妥接入原生游标，不绕开 Session admission；继续补齐材料盘点、知识／讲义／卡片的宿主机械阶段动作。最后用小型 PDF＋PPTX/DOCX 资料做真实迁移版端到端和强制中断验收，注意 API 用量。当前尚不能声称完整迁移验收完成。
+
+### 此后新增的机械步骤与测试限制
+
+- 当前模型工具还包含 `prepare-transcription`、`diagnose-transcription`、`assemble-transcription` 和 `run-step`。后者按当前游标阶段严格限制白名单：知识合并/检查、讲义准备/提交/检查、卡片准备/校验、Obsidian 链接重建、final 校验、package 预览及正式打包。教学正文、来源语义检查仍由主代理按应用规范编写。新 `references/native-transcription.md` 是 `guide image-first` 的实际返回内容；旧 `image-first.md` 仍在资源内供内部参考，但不作为当前模型指令。参考文件的旧 `SKILL/scripts` 路径已换成 `guide` 返回的 `<scriptsRoot>` 占位。
+- 对第二批变更，Host `tsc`、聚焦 oxlint、6 个 Host 测试文件 23 项通过。Windows installer 脚本测试尝试后在准备阶段因本机没有 Visual Studio C++ Build Tools / Windows SDK 退出；不代表应用图标或资源打包逻辑失败。原生 Host 和 Desktop bundle 在前一迁移提交后编译过，第二批 `run-step` 变更需要提交前重建 Host。
+- 仍缺：聊天附件/课程目录的真正原生绑定，资料盘点输入来源的宿主校验，真实 Electron 窗口启动与完整交互，真实新路径视觉子代理与重启租约恢复，混合 PDF＋PPTX/DOCX 的迁移版端到端课程包。不要把此节点标成全目标完成。旧版已生成课程不应作为无提示转换对象。

@@ -11,9 +11,9 @@ import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { parentAgentOptionsForDelegation } from '@deepseek-ai/dsh-subagent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { installPrimaryRuntime } from '@deepseek-ai/dsh-tool-workspace-dependencies'
-import { CourseWorkflow } from './course-workflow.ts'
+import { CourseWorkflow, type CourseStage } from './course-workflow.ts'
 import {
-  createCourseStageVerifier, inspectCoursePlan, runCourseMaterials, writeCourseConfirmation,
+  createCourseStageVerifier, inspectCoursePlan, runCourseMaterials, runCourseScript, writeCourseConfirmation,
   type CourseVerifierRuntime,
 } from './course-stage-verifier.ts'
 import { CourseTranscriptionBatchService } from './course-transcription-batch.ts'
@@ -35,7 +35,7 @@ const COURSE_GUIDES = {
   overview: 'runtime-policy.md',
   intake: 'references/intake.md',
   'material-processing': 'references/material-processing.md',
-  'image-first': 'references/image-first.md',
+  'image-first': 'references/native-transcription.md',
   'worker-policy': 'references/worker-policy.md',
   'knowledge-model': 'references/knowledge-model.md',
   'knowledge-store': 'references/knowledge-store.md',
@@ -53,6 +53,28 @@ const COURSE_GUIDES = {
   'delivery-layout': 'references/delivery-layout.md',
 } as const
 type CourseGuide = keyof typeof COURSE_GUIDES
+
+const COURSE_STEPS = {
+  'knowledge-assemble': { stages: ['knowledge'], script: 'assemble_knowledge.py', args: [] },
+  'knowledge-check': { stages: ['knowledge', 'path', 'lessons', 'cards'], script: 'assemble_knowledge.py', args: ['--check'] },
+  'lesson-prepare': { stages: ['lessons'], script: 'lesson_tasks.py', args: ['prepare'] },
+  'lesson-commit': { stages: ['lessons'], script: 'lesson_tasks.py', args: ['commit'] },
+  'lesson-status': { stages: ['lessons'], script: 'lesson_tasks.py', args: ['status'] },
+  'lesson-check': { stages: ['lessons'], script: 'lesson_tasks.py', args: ['check'] },
+  'cards-prepare': { stages: ['cards'], script: 'core_cards.py', args: ['prepare'] },
+  'cards-lint': { stages: ['cards'], script: 'core_cards.py', args: ['lint'] },
+  'cards-finalize': { stages: ['cards'], script: 'core_cards.py', args: ['finalize'] },
+  'links-rebuild': { stages: ['cards'], script: 'obsidian_links.py', args: ['rebuild'] },
+  'cards-check': { stages: ['cards'], script: 'core_cards.py', args: ['check'] },
+  'final-check': { stages: ['delivery'], script: 'validate_package.py', args: ['--mode', 'final'] },
+  'package-preview': { stages: ['delivery'], script: 'convert_materials.py', args: ['package', '--dry-run'] },
+  package: { stages: ['delivery'], script: 'convert_materials.py', args: ['package'] },
+} as const satisfies Record<string, {
+  stages: readonly CourseStage[]
+  script: Parameters<typeof runCourseScript>[2]
+  args: readonly string[]
+}>
+type CourseStep = keyof typeof COURSE_STEPS
 
 async function readCourseGuide(
   scripts: string, section: string,
@@ -229,7 +251,7 @@ export async function installCourseWorkflowApi(
   }
   const perform = async (
     course: string, action: string, model?: string, reason?: string, summary?: string, humanSeq?: number,
-    section?: string,
+    section?: string, step?: string, lesson?: string,
     parent?: Agent, signal?: AbortSignal,
   ): Promise<unknown> => {
     const cursor = workflow(course)
@@ -242,6 +264,25 @@ export async function installCourseWorkflowApi(
         if (section === undefined) return { stage: state?.stage ?? 'legacy', scriptsRoot: scripts,
           available: Object.keys(COURSE_GUIDES) }
         return readCourseGuide(scripts, section)
+      }
+      case 'run-step': {
+        const state = await cursor.inspect()
+        if (state?.status !== 'running' || state.stage === 'complete'
+          || step === undefined || !Object.hasOwn(COURSE_STEPS, step)) {
+          throw new Error('course workflow: a known mechanical step and running stage are required')
+        }
+        const selected = COURSE_STEPS[step as CourseStep]
+        if (!(selected.stages as readonly CourseStage[]).includes(state.stage)) {
+          throw new Error(`course workflow: ${step} is not allowed during ${state.stage}`)
+        }
+        const args: string[] = [...selected.args]
+        if (step === 'lesson-commit') {
+          if (lesson === undefined || !/^L-[A-Z0-9-]{1,60}$/u.test(lesson)) {
+            throw new Error('course workflow: a valid lesson ID is required')
+          }
+          args.push('--lesson', lesson)
+        }
+        return runCourseScript(await runtime(), course, selected.script, args)
       }
       case 'initialize': {
         if (await cursor.inspect() !== null) throw new Error('course workflow: this course already has a cursor')
@@ -289,6 +330,17 @@ export async function installCourseWorkflowApi(
           await watchdogs.stop(course)
         }
         return result
+      }
+      case 'prepare-transcription':
+      case 'assemble-transcription':
+      case 'diagnose-transcription': {
+        const state = await cursor.inspect()
+        if (state?.stage !== 'transcription' || state.status !== 'running') {
+          throw new Error('course workflow: a running transcription stage is required')
+        }
+        const command = action === 'prepare-transcription' ? 'prepare'
+          : action === 'assemble-transcription' ? 'assemble' : 'diagnose'
+        return runCourseMaterials(await runtime(), course, [command])
       }
       case 'probe': {
         const state = await cursor.inspect()
@@ -367,12 +419,16 @@ export async function installCourseWorkflowApi(
   })
   ctx.tools.register(defineTool({
     name: 'course_workflow',
-    description: 'Inspect or advance the application-owned Better Learning course workflow. Initialize before writing course output, then use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, probe verifies the current model with a fresh image-reading child; transcribe-batch reserves one full batch, starts fresh visual children, and collects each only after its real terminal result. Complete each stage only after saved artifacts pass validation.',
+    description: 'Inspect or advance the application-owned Better Learning course workflow. Initialize before writing course output, then use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, prepare-transcription creates the unit ledger, probe verifies the current model with a fresh image-reading child, transcribe-batch runs one whole isolated child batch, and assemble-transcription merges completed sources. run-step executes whitelisted mechanical commands only in their matching stage. Complete each stage only after saved artifacts pass validation.',
     parameters: {
       action: { type: 'string', required: true,
-        enum: ['inspect', 'guide', 'initialize', 'propose', 'confirm', 'change-model', 'start', 'probe', 'transcribe-batch', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
+        enum: ['inspect', 'guide', 'initialize', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
       course: { type: 'string', description: 'Current Session course directory (.) or one direct child of its registered workspace.' },
-      section: { type: 'string', description: 'For guide: overview or a named stage reference/template. Omit to list available sections.' },
+      section: { type: 'string', description: 'For guide: overview or a named stage reference/template. Omit to list available sections.',
+        enum: Object.keys(COURSE_GUIDES) },
+      step: { type: 'string', description: 'For run-step: a whitelisted mechanical command from the application workflow.',
+        enum: Object.keys(COURSE_STEPS) },
+      lesson: { type: 'string', description: 'Required for run-step lesson-commit: the L-* lesson ID.' },
       summary: { type: 'string', description: 'Required for propose: the learner-facing summary of goal, complete material scope, and baseline.' },
       reason: { type: 'string', description: 'Required reason when pausing a running stage.' },
     },
@@ -401,7 +457,7 @@ export async function installCourseWorkflowApi(
       }
       const model = agent.session.requestHeader()?.config.model ?? agent.options.model
       const result = await perform(course, args.action, model, args.reason, args.summary, humanSeq,
-        args.section, agent, exec.signal)
+        args.section, args.step, args.lesson, agent, exec.signal)
       return { result: JSON.stringify(result) }
     },
     presentCall: args => ({ card: 'generic', title: `Course workflow: ${args.action}`, kind: 'other' }),

@@ -116,15 +116,15 @@ K-03-04 ^K-03-04
 ## 六、命令与模式
 
 ```text
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE check --mode final
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE rebuild
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE rename-lesson --lesson L-01 --path 学习文档/01-新名称.md
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE merge-knowledge --from-id K-02 --into-id K-01
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE plan-migration
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE apply-migration --plan _工作区/迁移计划-xxx.json
-python -X utf8 SKILL/scripts/obsidian_links.py --course COURSE rollback-migration --journal _工作区/链接迁移记录.jsonl
-python -X utf8 SKILL/scripts/validate_package.py --course COURSE --mode final
-python -X utf8 SKILL/scripts/validate_package.py --course COURSE --mode packaged
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE check --mode final
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE rebuild
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE rename-lesson --lesson L-01 --path 学习文档/01-新名称.md
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE merge-knowledge --from-id K-02 --into-id K-01
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE plan-migration
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE apply-migration --plan _工作区/迁移计划-xxx.json
+python -X utf8 <scriptsRoot>/obsidian_links.py --course COURSE rollback-migration --journal _工作区/链接迁移记录.jsonl
+python -X utf8 <scriptsRoot>/validate_package.py --course COURSE --mode final
+python -X utf8 <scriptsRoot>/validate_package.py --course COURSE --mode packaged
 ```
 
 模式：`legacy-report` 只读盘点 v1；`staged`/`final` 是 v2 严格模式（不接受 heading 与裸文件目标）；`packaged` 核对交付文件与保留的注册表、快照，交付文件缺失中间产物也算通过。

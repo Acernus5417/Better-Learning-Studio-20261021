@@ -5,11 +5,11 @@
 ## 建立与查询
 
 ```text
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE build
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE audit
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE query --term 线性算子 --chapter KC-001 --source SRC-001 --status verified --max-items 8 --max-tokens 12000
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key knowledge:K-000001 --max-tokens 12000
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key knowledge:K-000001 --metadata
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE build
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE audit
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE query --term 线性算子 --chapter KC-001 --source SRC-001 --status verified --max-items 8 --max-tokens 12000
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE read --key knowledge:K-000001 --max-tokens 12000
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE read --key knowledge:K-000001 --metadata
 ```
 
 `query` 默认检索 `knowledge`。还可选 `chapter`、`source`、`extraction`、`coverage`、`metadata`。多个 `--term` 按 Unicode casefold 后作字面子串 AND 匹配；知识查询搜索完整正文及登记的 `title`、`terms`、`aliases`。中文别名无需分词，但没有自动同义词推断、向量召回或语义排序。结果按稳定 key 排序。章节、来源、状态过滤同时生效；知识的来源过滤通过其 `source_refs` 实现。缺省不输出巨大的索引条目，完整元数据也通过 `--metadata` 分页读取。
@@ -25,7 +25,7 @@ python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key knowl
 必须持续传回 `next_cursor`，直到 `has_more=false` 且 `next_cursor=null`。`truncated=true` 与 `has_more=true` 同义，仅表示这次预算内尚未返回全部匹配内容，不能宣称已完整读取。不得把第一批命中、已提取页数或已返回字符数当成全资料完成率。重组时按 key 和连续 range 拼接并核对完整哈希。空正文也会返回一条 `[0,0]` 记录。
 
 ```text
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key knowledge:K-000001 --max-tokens 12000 --cursor 上次返回的next_cursor
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE read --key knowledge:K-000001 --max-tokens 12000 --cursor 上次返回的next_cursor
 ```
 
 游标绑定索引内容版本、关键词与过滤条件、读取字段。续读可调整预算，但不得换查询条件。权威输入改动后先报 `INDEX_STALE`；重建后旧游标仍会被拒绝。游标是供同一调用方续读的非签名编码，不是授权凭据。若单条记录的必要元数据及至少一个字符也放不下，返回 `BUDGET_TOO_SMALL_FOR_RECORD`，不会静默省略记录或假报完成。
@@ -41,10 +41,10 @@ python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key knowl
 ## 来源与知识覆盖矩阵
 
 ```text
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE query --kind coverage --source SRC-001
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE query --kind coverage --status needs_review
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key coverage:SRC-001:U00001
-python -X utf8 SKILL/scripts/knowledge_store.py --course COURSE read --key knowledge-coverage:K-000001
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE query --kind coverage --source SRC-001
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE query --kind coverage --status needs_review
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE read --key coverage:SRC-001:U00001
+python -X utf8 <scriptsRoot>/knowledge_store.py --course COURSE read --key knowledge-coverage:K-000001
 ```
 
 每个来源单元同时保存覆盖台账的 `knowledge_ids` 和知识索引反向登记的 `registered_knowledge_ids`。每个知识项的矩阵保存 `source_refs`、覆盖台账反向声明 `ledger_claims` 及不存在于当前映射的 `invalid_source_refs`。这两边分别展示原始登记，不自动修补不一致。

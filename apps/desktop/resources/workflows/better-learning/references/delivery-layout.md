@@ -18,8 +18,8 @@
 ## 二、package：清理与归置
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE package --dry-run
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE package
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE package --dry-run
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE package
 ```
 
 先 `--dry-run` 预览将删除与移动的内容，确认后再执行。

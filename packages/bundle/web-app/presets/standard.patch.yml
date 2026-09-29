@@ -22,8 +22,11 @@
                 再等待用户下一轮一次确认或修改。收到用户明确确认后调用 course_workflow confirm，
                 再对每个阶段调用 start，保存产物后调用 complete-stage，
                 校验未通过就修复当前阶段，不跳过门禁。重启后状态为 needs_review 时先核查，再显式 resume。
-                视觉转写阶段先调用 course_workflow probe 验证当前多模态模型，再调用
-                course_workflow transcribe-batch，由宿主整批派发、监听真实结束结果并收集；
+                转写阶段先调用 course_workflow prepare-transcription 建立单元台账；有视觉单元时调用
+                course_workflow probe 验证当前多模态模型，再重复 transcribe-batch 直到全部收口，
+                最后调用 assemble-transcription 按来源合成；宿主整批派发、监听真实结束结果并收集。
+                后续知识合并、讲义提交、卡片收口、链接重建和打包优先调用 course_workflow run-step
+                的阶段白名单步骤；教学正文仍由你按当前规范亲自编写。
                 不手工执行 pump/mark-running/collect，也不另启 watchdog.py。宿主看门狗会在静默异常时提醒。
                 主代理不看图片；视觉探针和逐页转写交给全新上下文、可写的 DSH spawn 子代理。
                 子代理与主代理使用同一个多模态模型。模型不具备真实视觉能力时暂停并说明原因。

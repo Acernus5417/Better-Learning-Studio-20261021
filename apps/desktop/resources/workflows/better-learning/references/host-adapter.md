@@ -25,7 +25,7 @@ Better Learning Studio 使用 DSH 自身的 `subagent`（`provider: spawn`、`ba
 混合资料中的 PPTX、DOCX 需要整页视觉覆盖时，用 DSH 的 `skill` 加载内置 `office-pptx`、`office-docx`，从返回的 **Installed LibreOffice Kit** 取得 `libreofficeKit.node` 与 `libreofficeKit.cli` 绝对路径。以 `& <node> <cli> render --input <原件> --output-dir <新目录> --dpi 144` 导出全部页面，核对 manifest 的页码与缺失字体提示，再按 [图像流程](image-first.md)登记 `--office-renders` 映射。PDF 原件由 `extract_materials.py` 使用随附的 `pypdfium2` 渲染。不得把文本提取当作完整视觉覆盖。
 
 ```text
-python -X utf8 SKILL/scripts/convert_materials.py --course COURSE dispatch \
+python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE dispatch \
   --source SRC-001 --batch B01 --host dsh --model ACTUAL_MODEL
 ```
 
@@ -143,10 +143,10 @@ Codex 的正常宿主循环：
 
 | 宿主 | 启动后台进程 |
 | --- | --- |
-| codex | `nohup python -X utf8 SKILL/scripts/watchdog.py --course COURSE start --host codex &`（Windows 用 `Start-Process pythonw`） |
+| codex | `nohup python -X utf8 <scriptsRoot>/watchdog.py --course COURSE start --host codex &`（Windows 用 `Start-Process pythonw`） |
 | dsh | Windows 用 `pwsh` 的 `Start-Process` 启动捆绑的 `pythonw.exe`，传入 `watchdog.py --course COURSE start --host dsh --interval 90` 并设置 `-WindowStyle Hidden` |
 | codebuddy | `execute_command`：`Start-Process -FilePath pythonw -ArgumentList "…watchdog.py --course COURSE start --host codebuddy" -WindowStyle Hidden` |
-| claude | Bash：`nohup python -X utf8 SKILL/scripts/watchdog.py --course COURSE start --host claude >/dev/null 2>&1 &` |
+| claude | Bash：`nohup python -X utf8 <scriptsRoot>/watchdog.py --course COURSE start --host claude >/dev/null 2>&1 &` |
 
 提醒投递：三个宿主的 `nudge` 均为 `null`——外部进程无法调用宿主的 `send_message`/`collaboration` 接口，因此**统一走文件通道**：`_工作区/看门狗/提醒.jsonl` 追加一条、`状态.json` 保存最新一条。主代理每次被唤醒（完成事件到达或 `wait_agent` 超时返回）先读 `状态.json`，这就是"看门狗主动提醒"的落点；不得因为宿主没有推送接口就假装已收到实时消息。
 
