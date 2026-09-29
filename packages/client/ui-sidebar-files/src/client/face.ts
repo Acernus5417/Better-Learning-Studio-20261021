@@ -152,6 +152,8 @@ export interface CourseProgressState {
   readonly completedLessons: number
   readonly blockers: number
   readonly nextAction: string | undefined
+  readonly completedStages?: number
+  readonly fontWarnings?: number
 }
 
 export type CourseProgressResult =
@@ -175,6 +177,8 @@ export function createCourseProgressReader(remote: ClientRemote): FilesInjected[
         let stage = typeof state.stage === 'string' ? state.stage : 'other'
         let nextAction = typeof state.next_action === 'string' ? state.next_action.trim() || undefined : undefined
         let transcriptionRunning = false
+        let transcriptionActive = false
+        let completedStages: number | undefined
         if (native.ok) {
           const decoded: unknown = JSON.parse(native.value.text)
           if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) return { kind: 'failed' }
@@ -187,6 +191,11 @@ export function createCourseProgressReader(remote: ClientRemote): FilesInjected[
               : cursor.status === 'paused' || cursor.status === 'needs_review' ? cursor.status : 'working'
           nextAction = typeof cursor.nextAction === 'string' ? cursor.nextAction.trim() || undefined : undefined
           transcriptionRunning = cursor.stage === 'transcription' && cursor.status === 'running'
+          transcriptionActive = cursor.stage === 'transcription' && cursor.status !== 'complete'
+          if (typeof cursor.validated === 'object' && cursor.validated !== null && !Array.isArray(cursor.validated)) {
+            const stages = ['materials', 'transcription', 'knowledge', 'path', 'lessons', 'cards', 'delivery']
+            completedStages = stages.filter(key => Object.hasOwn(cursor.validated as object, key)).length
+          }
         }
         // Older skill runs left the progress stage at "working" after a
         // successful packaged validation. The receipt is the stronger gate.
@@ -206,6 +215,21 @@ export function createCourseProgressReader(remote: ClientRemote): FilesInjected[
           else if (!native.ok && packaged) stage = 'complete'
         }
         let blockers = Array.isArray(state.blockers) ? state.blockers.length : 0
+        let fontWarnings = 0
+        if (transcriptionActive) {
+          const office = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/office渲染报告.json`, {}, signal)
+          if (office.ok && office.value.eof) {
+            try {
+              const report: unknown = JSON.parse(office.value.text)
+              if (typeof report === 'object' && report !== null && !Array.isArray(report)
+                && 'sources' in report && Array.isArray(report.sources)) {
+                fontWarnings = report.sources.filter((source: unknown) => typeof source === 'object'
+                  && source !== null && 'missingFonts' in source && Array.isArray(source.missingFonts)
+                  && source.missingFonts.length > 0).length
+              }
+            } catch { /* Malformed Office report is not a course progress receipt. */ }
+          }
+        }
         if (transcriptionRunning) {
           const health = await remote.workspaceFiles.read(sessionId, `${prefix}_工作区/内置看门狗.json`, {}, signal)
           if (health.ok && health.value.eof) {
@@ -228,6 +252,8 @@ export function createCourseProgressReader(remote: ClientRemote): FilesInjected[
             completedLessons: Array.isArray(state.completed_lessons) ? state.completed_lessons.length : 0,
             blockers,
             nextAction: stage === 'complete' ? undefined : nextAction,
+            ...(completedStages === undefined ? {} : { completedStages }),
+            ...(fontWarnings === 0 ? {} : { fontWarnings }),
           },
         }
       } catch {

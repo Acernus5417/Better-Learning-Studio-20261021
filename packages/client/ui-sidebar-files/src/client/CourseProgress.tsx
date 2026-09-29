@@ -38,16 +38,19 @@ export function CourseProgress({
       : progress.kind === 'multiple' ? 'courseProgress.multiple' : 'courseProgress.readFailed'
     return <div className={css.courseProgress} data-course-progress={progress.kind}>{t(message)}</div>
   }
-  const { stage, completedChapters, completedLessons, blockers, nextAction } = progress.value
+  const { stage, completedChapters, completedLessons, blockers, nextAction, completedStages, fontWarnings } = progress.value
   const stageKey = stage === 'intake' || stage === 'needs_update' || stage === 'needs_review'
     || stage === 'paused' || stage === 'working' || stage === 'complete'
     ? `courseProgress.${stage}` as const : 'courseProgress.other'
   return (
     <div className={css.courseProgress} data-course-progress={stage} aria-live="polite">
       <span className={css.courseProgressTitle}>{t(stageKey)}</span>
+      {completedStages !== undefined && <span>{t('courseProgress.stages', { count: completedStages })}</span>}
       {completedChapters > 0 && <span>{t('courseProgress.chapters', { count: completedChapters })}</span>}
       {completedLessons > 0 && <span>{t('courseProgress.lessons', { count: completedLessons })}</span>}
       {blockers > 0 && <span className={css.courseProgressIssue}>{t('courseProgress.blockers', { count: blockers })}</span>}
+      {fontWarnings !== undefined && fontWarnings > 0
+        && <span className={css.courseProgressIssue}>{t('courseProgress.fontWarnings', { count: fontWarnings })}</span>}
       {nextAction && <span className={css.courseProgressNext} title={nextAction}>{nextAction}</span>}
     </div>
   )

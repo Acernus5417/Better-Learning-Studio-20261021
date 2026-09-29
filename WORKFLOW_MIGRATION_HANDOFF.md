@@ -145,3 +145,5 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 实测同一组三份资料 prepare 后 7 单元：4 deterministic_text、3 vision、0 blocked，CLI 输出 counts 为 done 4、pending 3、failed 0。二次运行渲染目录数不增加且映射哈希不变；故意增改缓存 PNG 一字节后，下一次运行新增完整渲染目录并重新映射。该测试资料报告缺 `Courier` 字体，需在真实 UI 的异常摘要中如实呈现。Host `tsc -b`、`tsdown`、聚焦 oxlint 与 8 个相关 Vitest 文件 24 项通过（2 项环境跳过）；未调用模型 API，用户原窗口未触碰。
 
 下一步仍是迁移版真实端到端：在用户不操作窗口时，用应用界面或隔离配置完成直接附件发送、跨用户回合目标确认，随后当前实际多模态模型做视觉探针及一批成员，核验 watchdog 与强制中断后的 `resume`，最终生成 packaged 收据。注意 token 用量和缓存口径；不要为检查而读取整门旧课程正文。当前源码变更尚需提交；提交后以 `git status --short` 确认工作区干净。
+
+右侧课程状态条随后新增原生游标的“已通过 N/7 阶段”，转写时读取小型 `_工作区/office渲染报告.json` 并显示有缺失字体的来源数。类型检查、聚焦 lint、7 项 UI 测试与 Better Learning 配置下的 Web 构建通过。仅修改状态摘要，不加载课程正文。此批 UI 代码提交前应再检查 Git 状态。

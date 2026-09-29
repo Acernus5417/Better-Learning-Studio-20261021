@@ -90,4 +90,25 @@ describe('course progress strip', () => {
         blockers: 2, nextAction: '正在转写' },
     })
   })
+
+  it('shows verified native stages and Office font anomalies in the compact strip', async () => {
+    const read = vi.fn(async (_session: SessionId, path: string) => {
+      if (path === '_工作区/内置工作流.json') return { ok: true, value: { eof: true, text: JSON.stringify({
+        schemaVersion: 1, stage: 'transcription', status: 'running', nextAction: '正在转写',
+        validated: { materials: { signature: 'verified' } },
+      }) } }
+      if (path === '_工作区/office渲染报告.json') return { ok: true, value: { eof: true, text: JSON.stringify({
+        sources: [{ source: 'SRC-001', missingFonts: ['Courier'] }, { source: 'SRC-002', missingFonts: [] }],
+      }) } }
+      return { ok: false, error: { code: 'workspace-file/not-found' } }
+    })
+    const reader = createCourseProgressReader({ workspaceFiles: { read, list: vi.fn() } } as unknown as ClientRemote)
+    expect(await reader(sessionId, root, new AbortController().signal)).toEqual({
+      kind: 'ready', value: { stage: 'working', completedChapters: 0, completedLessons: 0,
+        blockers: 0, nextAction: '正在转写', completedStages: 1, fontWarnings: 1 },
+    })
+    render(<CourseProgress sessionId={sessionId} root={root} readCourseProgress={reader} t={t} />)
+    await waitFor(() => { expect(screen.getByText('已通过 1/7 阶段')).toBeTruthy() })
+    expect(screen.getByText('1 份资料字体可能替换')).toBeTruthy()
+  })
 })
