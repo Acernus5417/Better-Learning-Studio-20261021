@@ -108,4 +108,6 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 
 Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown 通过。使用此前隔离配置启动新 Electron：进程存活且 19388 端口监听；测试后该隔离进程与端口都已关闭，原用户窗口未动。stderr 有 `dsh-desktop:mandatory-status` “No handler registered” 一条；目前未做图形界面交互检查，不能判断影响。没有调用课程模型 API。
 
+该 IPC 日志的源码路径已定位：Windows `preload-mandatory-overlay.ts` 总会尝试读取更新状态并捕获失败；`main.ts` 仅在存在强制更新策略配置时创建注册该 handler 的 `DesktopMandatoryUpdateWindow`。隔离开发配置没有该策略，所以这条日志符合当前分支条件；尚不能据此推断主界面失败。下一步仍需实际查看窗口与附件交互。
+
 **后续优先级**：先在隔离窗口核对该 IPC 错误与底部输入／附件交互，并用一个小型混合 PDF＋PPTX＋DOCX 在真实模型会话验证 `create-course`、资料清单、聊天归纳与后续回合确认；再跑视觉探针、独立子代理批次、强制中断后 `resume`，最后完成知识、讲义、卡片与 packaged。用户配置的模型凭据在应用内，勿输出凭据；记录实际 token 用量和失败点，避免重复生成已通过阶段。当前周额度接近上限；停下前确认 Git 提交和工作区干净。
