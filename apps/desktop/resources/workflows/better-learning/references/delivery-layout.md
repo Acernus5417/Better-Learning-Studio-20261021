@@ -1,26 +1,16 @@
 # 交付结构与收尾
 
-教学产物全部生成后，运行收尾把课程整理成可交付形态。收尾分两步：**停止子 Agent**（主代理执行）和 **package**（脚本执行）。
+教学产物全部生成后，应用工作流把课程整理成可交付形态。收尾分两步：核对转写成员终态和执行 `package`。
 
-## 一、转写完成后先停止子 Agent
+## 一、确认转写成员已经结束
 
-`assemble` 成功即表示所有来源已合成，此时不应再有成员在写文件。主代理必须按 [宿主适配](host-adapter.md) 里该宿主的 `stopped` 方式确认所有成员已结束：
+`course_workflow assemble-transcription` 成功表示全部来源合成，并且没有仍在写文件的活动尝试。宿主按真实子 Agent 终态收集结果；`complete-stage` 通过转写校验后停止应用内置看门狗。主代理在进入交付阶段前检查原生游标与台账，不手动启动或停止 `watchdog.py`。
 
-| 宿主 | 停止方式 |
-| --- | --- |
-| codex | 用宿主接口确认成员线程已结束，必要时将其终止 |
-| dsh | 收到结算通知后用 `list_agents` 核实终态；必要时用 `interrupt_agent` 并等待终态 |
-| codebuddy | 用 `send_message` 发 `shutdown_request`，确认后 `team_delete` 清理团队 |
-| claude | 用 `TaskStop` 停止，或确认该 subagent 已返回 |
-
-`package` 会拒绝在有活跃租约（`_工作区/转写任务.json` 里的 `active_member`）时执行，也会拒绝在看门狗进程仍在运行时执行（先 `watchdog.py --course COURSE stop`），所以这一步不能跳过。同理 `assemble` 也不会在有 reserved/running 租约或未完成单元时通过——两者互为前置。
+`package` 会拒绝仍有活跃租约的台账；旧版课程若仍有旧 `watchdog.py` 进程也会被拒绝。`assemble` 不会在 reserved/running 租约或未完成单元存在时通过。
 
 ## 二、package：清理与归置
 
-```text
-python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE package --dry-run
-python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE package
-```
+在 delivery 阶段依次调用 `course_workflow run-step` 的 `package-preview` 和 `package`。随后调用 `complete-stage`；宿主会执行 packaged 校验并核对收据。
 
 先 `--dry-run` 预览将删除与移动的内容，确认后再执行。
 
@@ -31,6 +21,7 @@ python -X utf8 <scriptsRoot>/convert_materials.py --course COURSE package
 | `_工作区/转写尝试/` | 尝试暂存文件，成功结果已原子提交并合成来源转写 |
 | `_工作区/派发提示/` | 成员提示词，一次性 |
 | `_工作区/提取内容/` | 逐页渲染图、文本块、单元转写副本、识别证据——**体积主体** |
+| `_工作区/office渲染/` | DOCX/PPTX 整页 PNG 缓存；来源与缺字字体报告留在台账中 |
 
 **保留**：`_工作区/` 下的台账与索引（`转写任务.json`、`资料索引.json`、`章节索引.json`、`知识索引.jsonl`、`覆盖台账.jsonl`、`生成进度.json`、`结构检查.json`），供追溯与审计。
 

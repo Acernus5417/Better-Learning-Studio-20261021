@@ -629,8 +629,7 @@ def assemble(course):
     from obsidian_links import enabled, build_map
     if enabled(course): build_map(course)
     return {'complete': True, 'sources': len(data['sources']), 'paths': [s['transcript'] for s in data['sources']],
-            'next': '转写已全部完成。请按宿主适配确认所有子 Agent 已停止（不再有成员在写），'
-                    '并运行 `watchdog.py --course COURSE stop` 停止看门狗进程；'
+            'next': '转写已全部完成。应用内置工作流确认子 Agent 终态并停止看门狗；'
                     '随后按章整理知识内容.md、学习路径、讲义和卡片，验收后才可 package。'}
 
 
@@ -638,7 +637,7 @@ DOC_DIR = '课程文档'
 DOC_FILES = ('学习需求.md', '学习路径.md', '资料清单.md', '知识内容.md',
              '质量报告.md', '待核实问题.md', '学习反馈.md', '转写拆分计划.md')
 PURGE = ('_工作区/讲义尝试', '_工作区/讲义输入', '_工作区/转写尝试', '资料转写/_分片', '_工作区/派发提示',
-         '_工作区/提取内容', '_工作区/看门狗')
+         '_工作区/提取内容', '_工作区/office渲染', '_工作区/看门狗')
 LINK = re.compile(r'(!?\[[^\]\n]*\]\(\s*)(?:<([^>]+)>|([^\s)]+))((?:\s+["\'][^\n]*?["\'])?\s*\))')
 
 
