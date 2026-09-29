@@ -127,3 +127,11 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 `apps/desktop-host/src/course-attachments.ts` 原先在整批附件复制后才写 `_工作区/附件导入.json`。若复制到一半退出，已经发布的文件仍在磁盘上，但 ledger 无法指明剩余的 DSH 附件；用户下一回合无法直接用 `refresh-inventory` 继续。现在在复制开始前把**当前真实用户消息已准入的附件引用**和已验证的文件夹写进同一个原子 ledger 的 `pending` 字段。成功复制并逐件复核哈希后，清掉 pending、保存正式条目，才运行 inventory。旧版 ledger 没有 pending 仍可读取。
 
 `course_workflow refresh-inventory` 现在会用 Host 持久 `AttachmentStore` 补齐 pending 中尚未发布的文件，并核对已经复制好的文件，不再要求用户在下一回合重新附加。模拟第二个附件的流中断后，从磁盘 ledger 恢复两份资料且第一份不重复读取；8 个 Host 聚焦测试文件 33 通过、2 跳过。尚需在真实 Electron/Host 强制退出场景证明 `AttachmentStore` 重启后也可读取同一引用。该改动没有调用模型 API。此前本文件所述“ledger 落盘前中断可能要求重新附加”的边界已缩小为**原子 pending ledger 写入前**，此时尚未开始复制任何文件。
+
+## 2026-09-29 当前用户配置与迁移版实机准备
+
+原桌面窗口的狼人杀课程显示已完成。使用应用“退出”菜单正常结束主进程后，把当前 `AppData/Roaming/BetterLearningStudio-DSH/dsh` 另备份为 `C:\Users\win11\AppData\Roaming\BetterLearningStudio-DSH\backups\bls-pre-native-live-e2e-20260929\profile.zip`，ZIP 156345962 字节，SHA-256 `831D46CA843F25F6EB05788C9CA00F7EEBCB11F26AD2ED736F4D8C1D406690C6`；只读打开 ZIP 核对 8310 项、解压前总字节 348531911。**含凭据，不进入仓库，不输出内部内容。** 这份备份包含之前迁移备份后新增的用户课程会话。
+
+应用以当前 bundle 重启，旧课程和侧栏会话保留；“我的课程”下新建了空的验收会话，预设为 `better-learning`。从模型菜单选择 DSH 官方目录 `DeepSeek-V41-Flash`（源码 `packages/llm/llm-deepseek/src/models.ts` 映射为 `deepseek-flash`、声明 text+image）；原会话使用的 `Deepseek-V4.1-Flash` 是另一个 work 目录项，先前真实视觉探针曾失败，两个条目切勿混淆。加号菜单实际有“文件”和“文件夹”。原生文件对话框已关闭，未选入资料；**没有发送新消息、没有 API 调用**。桌面自动操作收到“user input was detected in this window”后停止触碰该窗口，避免和用户手动操作相冲突。当前主进程由前台诊断启动的 `start-studio.ps1 -SkipBuild` 维持；无需为下面的本地测试关闭。
+
+下一步可先在隔离 profile/测试框架中完成小型混合资料的原生附件和流程验证；若再操控原用户窗口，先确认用户没有正在操作。可用 `.desktop-cache/mixed-course/附件/` 里的 `lesson.pdf`、`simple-slides.pptx`、`lesson.docx` 三个小文件，不必读取旧大型课程产物。用户明确要求注意 API token，用 DSH 会话用量记录实际消耗。完整迁移版端到端、真实 probe/视觉成员、watchdog 强制中断及 packaged 尚未验收。
