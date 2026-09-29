@@ -7,7 +7,9 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-设置 `BLS_WORKFLOW_ROOT` 后，桌面宿主提供已认证的 `POST /api/better-learning/workflow` 和模型可调用的 `course_workflow` 工具。二者共享持久化的 `_工作区/内置工作流.json` 游标。课程必须是已登记工作区根目录或直接子目录，并核对真实路径。HTTP 接口支持 `inspect`、`initialize`、`confirm`、`change-model`、`start`、`complete-stage`、`pause`、`reconcile`、`resume`、`watchdog`；模型工具另外支持 `guide`、`propose`、`probe`、`transcribe-batch`。
+设置 `BLS_WORKFLOW_ROOT` 后，桌面宿主提供已认证的 `POST /api/better-learning/workflow` 和模型可调用的 `course_workflow` 工具。二者共享持久化的 `_工作区/内置工作流.json` 游标。课程必须是已登记工作区根目录或直接子目录，并核对真实路径。HTTP 接口支持 `inspect`、`initialize`、`confirm`、`change-model`、`start`、`complete-stage`、`pause`、`reconcile`、`resume`、`watchdog`；模型工具另外支持 `guide`、`create-course`、`propose`、`probe`、`transcribe-batch` 和按阶段限制的机械动作。`create-course` 要求工作区根会话的真实用户回合，在计划初始化前创建一个新的直接子目录。
+
+Web 监听端口默认为 19387；隔离桌面实例可用 `BLS_WEB_PORT` 指定其他有效 TCP 端口。
 
 `initialize` 在建立游标前运行随包计划校验。模型用 `propose` 保存需求摘要，`confirm` 要求下一轮真实用户消息。`guide` 按名称读取随应用发布的阶段规范或模板。模型名称来自当前 Session 请求。每个阶段只有经过宿主对实际产物和脚本收据的校验才可前进。切换模型会使转写和后续凭证失效。普通 `inspect` 只读；启动扫描和显式 `reconcile` 才把中断状态改为 `needs_review`。
 

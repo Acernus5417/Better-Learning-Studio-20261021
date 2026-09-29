@@ -7,7 +7,9 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
-With `BLS_WORKFLOW_ROOT` configured, the Desktop Host exposes authenticated `POST /api/better-learning/workflow` and the model-facing `course_workflow` tool. Both share one durable `_工作区/内置工作流.json` cursor. A course must be a registered workspace root or a direct child; real paths are checked. The HTTP route supports `inspect`, `initialize`, `confirm`, `change-model`, `start`, `complete-stage`, `pause`, `reconcile`, `resume`, and `watchdog`. The model tool additionally supports `guide`, `propose`, `probe`, and `transcribe-batch`.
+With `BLS_WORKFLOW_ROOT` configured, the Desktop Host exposes authenticated `POST /api/better-learning/workflow` and the model-facing `course_workflow` tool. Both share one durable `_工作区/内置工作流.json` cursor. A course must be a registered workspace root or a direct child; real paths are checked. The HTTP route supports `inspect`, `initialize`, `confirm`, `change-model`, `start`, `complete-stage`, `pause`, `reconcile`, `resume`, and `watchdog`. The model tool additionally supports `guide`, `create-course`, `propose`, `probe`, `transcribe-batch`, and stage-bound mechanical actions. `create-course` requires a direct human turn in a workspace-root Session and creates one new direct-child directory before plan initialization.
+
+The web listener uses port 19387 by default. `BLS_WEB_PORT` may select another valid TCP port for an isolated desktop instance.
 
 `initialize` runs the bundled plan validator before creating the cursor. The model saves an intake summary with `propose`, then `confirm` requires a direct human message in a later turn. `guide` reads a named policy section or template from the bundled application workflow. The selected model is taken from the live Session request. Each stage advances only after Host verification of saved artifacts and script receipts. A model change invalidates transcription and downstream evidence. Ordinary `inspect` is read-only; startup scan and explicit `reconcile` mark interrupted work `needs_review`.
 

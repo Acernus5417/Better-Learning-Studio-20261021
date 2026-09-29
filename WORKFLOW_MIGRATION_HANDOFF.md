@@ -78,4 +78,10 @@ Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真
 
 - 当前模型工具还包含 `prepare-transcription`、`diagnose-transcription`、`assemble-transcription` 和 `run-step`。后者按当前游标阶段严格限制白名单：知识合并/检查、讲义准备/提交/检查、卡片准备/校验、Obsidian 链接重建、final 校验、package 预览及正式打包。教学正文、来源语义检查仍由主代理按应用规范编写。新 `references/native-transcription.md` 是 `guide image-first` 的实际返回内容；旧 `image-first.md` 仍在资源内供内部参考，但不作为当前模型指令。参考文件的旧 `SKILL/scripts` 路径已换成 `guide` 返回的 `<scriptsRoot>` 占位。
 - 对第二批变更，Host `tsc`、聚焦 oxlint、6 个 Host 测试文件 23 项通过。Windows installer 脚本测试尝试后在准备阶段因本机没有 Visual Studio C++ Build Tools / Windows SDK 退出；不代表应用图标或资源打包逻辑失败。原生 Host 和 Desktop bundle 在前一迁移提交后编译过，第二批 `run-step` 变更需要提交前重建 Host。
-- 仍缺：聊天附件/课程目录的真正原生绑定，资料盘点输入来源的宿主校验，真实 Electron 窗口启动与完整交互，真实新路径视觉子代理与重启租约恢复，混合 PDF＋PPTX/DOCX 的迁移版端到端课程包。不要把此节点标成全目标完成。旧版已生成课程不应作为无提示转换对象。
+- 仍缺：聊天附件与新课程目录的真实文件定位及用户界面交互验收、资料盘点输入来源的宿主校验、新路径视觉子代理与重启租约恢复、混合 PDF＋PPTX/DOCX 的迁移版端到端课程包。不要把此节点标成全目标完成。旧版已生成课程不应作为无提示转换对象。
+
+### 隔离桌面启动结果及新增课程入口
+
+- `course_workflow create-course` 现支持根工作区会话在真实用户回合创建**新的直接子课程目录**，随即调用 plan 和原生初始化。拒绝路径穿越、Windows 保留名、重复目录和子课程会话再嵌套；返回课程名供后续工具调用。模型执行阶段时会核对当前实际选模与游标模型，手动切模后必须暂停并 `change-model`，避免静默混用模型。Host 单测覆盖这些边界。
+- 为不打断仍运行的旧开发窗口，用 `.desktop-cache/native-workflow-smoke-20260929` 下的独立 `DSH_HOME` 和 Electron 用户数据、`BLS_WEB_PORT=19388` 启动新 Host。首次发现当前机器 `apps/desktop-host/node_modules` 尚缺 `dsh-llm`、`dsh-tools`、`dsh-session-projection` 和此前已声明的 `dsh-subagent` workspace junction，已在忽略的 `node_modules` 里补齐；源码 manifest/lock 包含新增依赖，干净安装应由 pnpm 建立链接。用扩大沙箱权限启动后，Host 在 19388 成功监听，已认证 `/api/better-learning/workflow` 对无效 JSON 对象返回预期 400，证明路由挂载。测试实例 PID 从隔离记录读取后已单独停止；原用户窗口没有重启。**未发起模型请求。**
+- 当前安装器脚本测试仍受本机缺 Visual Studio C++ Build Tools / Windows SDK 阻断。隔离实例只验证应用启动与 HTTP 路由，尚未验证模型工具实际调用、视觉子代理生命周期、材料附件定位或生成质量。迁移版用户界面与这些内容需后续验收。重新启动原开发窗口后才能加载新编译的 Host；不要在用户正操作时覆盖其会话。

@@ -1,6 +1,6 @@
 /** Authenticated Desktop API for application-owned course stage control. */
 
-import { access, readFile, readdir, realpath, stat } from 'node:fs/promises'
+import { access, mkdir, readFile, readdir, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -129,6 +129,27 @@ export async function resolveAgentCourse(
   throw new Error('course workflow: session is outside a registered course workspace')
 }
 
+/** Create exactly one new direct-child course for a Session rooted at a registered workspace. */
+export async function createAgentCourse(
+  workspaces: readonly { readonly id: string; readonly path: string }[], cwd: string, name: string,
+): Promise<string> {
+  if (name.trim() !== name || name.length < 1 || name.length > 80 || name.endsWith('.')
+    || /[<>:"/\\|?*\u0000-\u001f]/u.test(name)
+    || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(name) || name === '_工作区') {
+    throw new Error('course workflow: invalid new course name')
+  }
+  const sessionRoot = await realpath(cwd)
+  const workspace = await Promise.all(workspaces.map(async (item) => {
+    try { return { ...item, root: await realpath(item.path) } }
+    catch { return null }
+  })).then(items => items.find(item => item?.root === sessionRoot))
+  if (workspace === undefined || workspace === null) {
+    throw new Error('course workflow: new courses require a registered workspace-root Session')
+  }
+  await mkdir(resolve(sessionRoot, name))
+  return resolveRegisteredCourse(workspaces, workspace.id, name)
+}
+
 /** A model may commit intake only during a live root turn containing direct human input. */
 export function requireHumanCourseConfirmation(ctx: Context, agent: Agent): number {
   if (ctx.agents.get(agent.id) !== agent || agent.status !== 'running'
@@ -255,6 +276,15 @@ export async function installCourseWorkflowApi(
     parent?: Agent, signal?: AbortSignal,
   ): Promise<unknown> => {
     const cursor = workflow(course)
+    if (parent !== undefined && model !== undefined && [
+      'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription',
+      'diagnose-transcription', 'run-step', 'complete-stage',
+    ].includes(action)) {
+      const state = await cursor.inspect()
+      if (state?.model !== model) {
+        throw new Error('course workflow: selected model differs from course model; pause and change-model before continuing')
+      }
+    }
     switch (action) {
       case 'inspect': {
         return cursor.inspect()
@@ -422,8 +452,8 @@ export async function installCourseWorkflowApi(
     description: 'Inspect or advance the application-owned Better Learning course workflow. Initialize before writing course output, then use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, prepare-transcription creates the unit ledger, probe verifies the current model with a fresh image-reading child, transcribe-batch runs one whole isolated child batch, and assemble-transcription merges completed sources. run-step executes whitelisted mechanical commands only in their matching stage. Complete each stage only after saved artifacts pass validation.',
     parameters: {
       action: { type: 'string', required: true,
-        enum: ['inspect', 'guide', 'initialize', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
-      course: { type: 'string', description: 'Current Session course directory (.) or one direct child of its registered workspace.' },
+        enum: ['inspect', 'guide', 'create-course', 'initialize', 'propose', 'confirm', 'change-model', 'start', 'prepare-transcription', 'probe', 'transcribe-batch', 'assemble-transcription', 'diagnose-transcription', 'run-step', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
+      course: { type: 'string', description: 'Current Session course directory (.) or one direct child of its registered workspace. For create-course, a new direct-child name.' },
       section: { type: 'string', description: 'For guide: overview or a named stage reference/template. Omit to list available sections.',
         enum: Object.keys(COURSE_GUIDES) },
       step: { type: 'string', description: 'For run-step: a whitelisted mechanical command from the application workflow.',
@@ -446,6 +476,12 @@ export async function installCourseWorkflowApi(
       }
       const cwd = agent.session.header.cwd
       if (cwd === undefined) throw new Error('course workflow: session has no course workspace')
+      if (args.action === 'create-course') {
+        requireHumanCourseConfirmation(ctx, agent)
+        if (args.course === undefined) throw new Error('course workflow: new course name is required')
+        const created = await createAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course)
+        return { result: JSON.stringify({ course: args.course, initialization: await perform(created, 'initialize') }) }
+      }
       const course = await resolveAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course ?? '.')
       const humanSeq = args.action === 'propose' || args.action === 'confirm'
         ? requireHumanCourseConfirmation(ctx, agent) : undefined

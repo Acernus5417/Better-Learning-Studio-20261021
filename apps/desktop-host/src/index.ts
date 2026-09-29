@@ -23,6 +23,14 @@ function positiveMilliseconds(name: string, fallback: number): number {
   return value
 }
 
+function desktopWebPort(): number {
+  const value = Number(process.env.BLS_WEB_PORT ?? '19387')
+  if (!Number.isSafeInteger(value) || value < 1 || value > 65_535) {
+    throw new Error('BLS_WEB_PORT must be an integer from 1 through 65535')
+  }
+  return value
+}
+
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
   const projectDir = process.argv[3] as string
@@ -35,7 +43,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
-    args: ['--no-open', '--port', '19387'],
+    args: ['--no-open', '--port', String(desktopWebPort())],
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
         command: process.execPath,

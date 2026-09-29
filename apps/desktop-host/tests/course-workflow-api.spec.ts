@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import {
-  discoverSavedCourses, installCourseWorkflowApi, requireHumanCourseConfirmation, resolveAgentCourse,
+  createAgentCourse, discoverSavedCourses, installCourseWorkflowApi, requireHumanCourseConfirmation, resolveAgentCourse,
   resolveRegisteredCourse,
 } from '../src/course-workflow-api.ts'
 import { CourseWorkflow } from '../src/course-workflow.ts'
@@ -54,6 +54,17 @@ describe('course API directory selection', () => {
     await expect(resolveAgentCourse(workspaces, root, 'Course/Nested')).rejects.toThrow('invalid relative')
   })
 
+  it('creates a unique direct-child course only from a registered workspace-root Session', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'bls-course-create-'))
+    roots.push(root)
+    const workspaces = [{ id: 'workspace-1', path: root }]
+    expect(await createAgentCourse(workspaces, root, '数学基础')).toBe(join(root, '数学基础'))
+    await expect(createAgentCourse(workspaces, root, '数学基础')).rejects.toThrow()
+    await expect(createAgentCourse(workspaces, root, 'CON.txt')).rejects.toThrow('invalid new course')
+    await expect(createAgentCourse(workspaces, root, '../escape')).rejects.toThrow('invalid new course')
+    await expect(createAgentCourse(workspaces, join(root, '数学基础'), 'nested')).rejects.toThrow('workspace-root')
+  })
+
   it('keeps an active stage running when the desktop merely inspects progress', async () => {
     const root = await mkdtemp(join(tmpdir(), 'bls-course-api-'))
     roots.push(root)
@@ -65,8 +76,9 @@ describe('course API directory selection', () => {
       return () => undefined
     } } }
     const events = [{ type: 'turn/start' }, { type: 'user/message', data: { source: { kind: 'user' } } }]
+    let selectedModel = 'multimodal-model'
     const agent = { id: 'root', status: 'running', options: { model: 'multimodal-model' }, session: {
-      header: { cwd: root }, requestHeader: () => ({ config: { model: 'multimodal-model' } }),
+      header: { cwd: root }, requestHeader: () => ({ config: { model: selectedModel } }),
       snapshotEvents: () => events,
     } }
     const agents = { list: () => [agent], roots: () => [agent], get: () => agent, currentInitiator: () => agent }
@@ -102,6 +114,10 @@ describe('course API directory selection', () => {
     })
     await expect(courseTool!.execute({ action: 'run-step', step: 'package' }, { agent } as never))
       .rejects.toThrow('not allowed during materials')
+    selectedModel = 'different-model'
+    await expect(courseTool!.execute({ action: 'run-step', step: 'knowledge-check' }, { agent } as never))
+      .rejects.toThrow('selected model differs')
+    selectedModel = 'multimodal-model'
     await mkdir(join(root, 'New'))
     await new CourseWorkflow(join(root, 'New'), async () => null).initialize()
     const proposed = await courseTool!.execute({ action: 'propose', course: 'New', summary: '目标、资料、基础' }, { agent } as never)
