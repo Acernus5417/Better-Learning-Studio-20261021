@@ -24,6 +24,7 @@ export interface CourseWorkflowState {
   readonly stage: CourseStage | 'complete'
   readonly status: CourseWorkflowStatus
   readonly confirmations: { readonly goal: boolean; readonly materials: boolean; readonly baseline: boolean }
+  readonly intakeProposal?: { readonly summary: string; readonly humanSeq: number }
   readonly model: string | null
   readonly validated: Partial<Record<CourseStage, CourseStageEvidence>>
   readonly nextAction: string
@@ -72,6 +73,12 @@ function parseState(value: unknown, courseRoot: string): CourseWorkflowState {
   const confirmations = value.confirmations
   if (typeof confirmations.goal !== 'boolean' || typeof confirmations.materials !== 'boolean'
     || typeof confirmations.baseline !== 'boolean') throw new Error('course workflow: invalid confirmations')
+  const proposal = value.intakeProposal
+  if (proposal !== undefined && (!record(proposal) || typeof proposal.summary !== 'string'
+    || proposal.summary.trim() === '' || !Number.isSafeInteger(proposal.humanSeq)
+    || (proposal.humanSeq as number) < 0)) {
+    throw new Error('course workflow: invalid intake proposal')
+  }
   const validated: Partial<Record<CourseStage, CourseStageEvidence>> = {}
   for (const [stage, evidence] of Object.entries(value.validated)) {
     if (!isStage(stage) || !record(evidence) || typeof evidence.signature !== 'string'
@@ -101,6 +108,7 @@ function parseState(value: unknown, courseRoot: string): CourseWorkflowState {
   return {
     schemaVersion: 1, courseRoot, stage: value.stage, status,
     confirmations: { goal: confirmations.goal, materials: confirmations.materials, baseline: confirmations.baseline },
+    ...proposal === undefined ? {} : { intakeProposal: { summary: proposal.summary as string, humanSeq: proposal.humanSeq as number } },
     model: value.model, validated, nextAction: value.nextAction, updatedAt: value.updatedAt,
   }
 }
@@ -164,6 +172,19 @@ export class CourseWorkflow {
         confirmations: { goal: false, materials: false, baseline: false }, model: null, validated: {},
         nextAction: '确认学习目标、资料范围和基础', updatedAt: this.now().toISOString(),
       })
+    })
+  }
+
+  /** Save the learner-facing intake summary before asking them to confirm or amend it. */
+  propose(summary: string, humanSeq: number): Promise<CourseWorkflowState> {
+    return this.locked(async () => {
+      const state = await this.requireState()
+      if (state.status !== 'waiting_confirmation') throw new Error('course workflow: intake is not awaiting confirmation')
+      if (summary.trim() === '' || !Number.isSafeInteger(humanSeq) || humanSeq < 0) {
+        throw new Error('course workflow: invalid intake proposal')
+      }
+      return this.write({ ...state, intakeProposal: { summary: summary.trim(), humanSeq },
+        nextAction: '等待学习者确认或修改学习目标、资料范围和基础', updatedAt: this.now().toISOString() })
     })
   }
 

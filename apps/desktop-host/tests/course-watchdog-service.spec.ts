@@ -2,12 +2,37 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { inspectCourseAttempts } from '../src/course-watchdog-service.ts'
+import { CourseWatchdogService, inspectCourseAttempts } from '../src/course-watchdog-service.ts'
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))) })
 
 describe('course attempt health', () => {
+  it('wakes the parent once for an unchanged silent visual attempt', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'bls-watchdog-ledger-'))
+    roots.push(root)
+    await mkdir(join(root, '_工作区'))
+    await writeFile(join(root, '_工作区', '转写任务.json'), JSON.stringify({
+      attempts: [{ id: 'A-1', state: 'running', host_agent_id: 'child-live', started_at: '2020-01-01T00:00:00Z' }],
+      sources: [],
+    }))
+    const notices: unknown[] = []
+    const parent = { id: 'parent', followup: (message: unknown) => { notices.push(message) } }
+    const ctx = {
+      agents: { list: () => [{ id: 'child-live' }, parent], get: (id: string) => id === 'parent' ? parent : undefined },
+      on: () => () => undefined,
+      effect: () => undefined,
+    }
+    const service = new CourseWatchdogService(ctx as never, { intervalMs: 60_000, silentMs: 1 })
+    try {
+      expect((await service.start(root, parent as never)).silentAttemptIds).toEqual(['A-1'])
+      expect(notices).toHaveLength(1)
+      await service.check(root)
+      expect(notices).toHaveLength(1)
+      expect(JSON.stringify(notices[0])).toContain('A-1')
+    } finally { await service.stop(root) }
+  })
+
   it('joins durable attempt ids with actual live and settled child ids', async () => {
     const root = await mkdtemp(join(tmpdir(), 'bls-watchdog-ledger-'))
     roots.push(root)

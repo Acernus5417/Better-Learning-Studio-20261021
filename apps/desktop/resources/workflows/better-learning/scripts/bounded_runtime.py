@@ -68,7 +68,7 @@ def policy_registry(stage, skill_root=None):
     refs, templates, validators = STAGES[stage]
     # Runtime and validator source changes invalidate old task contracts too.
     groups = {
-        'policies': [root / 'SKILL.md', root / 'references/host-adapter.md',
+        'policies': [root / 'runtime-policy.md', root / 'references/host-adapter.md',
                      root / 'references/bounded-pipeline.md'] + [root / 'references' / p for p in refs],
         'templates': [root / 'assets/templates' / p for p in templates],
         'validators': [root / 'scripts' / p for p in validators] + [Path(__file__).resolve(),

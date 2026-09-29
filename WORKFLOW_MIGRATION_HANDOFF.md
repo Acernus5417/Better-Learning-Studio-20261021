@@ -61,3 +61,15 @@
 - 强制加载 skill 的预设在 `packages/bundle/web-app/presets/standard.patch.yml`：persona 前缀明确要求加载 better-learning；`skill-filesystem` 和 `tool-skill` 也在同一预设。**原生执行器有等价能力之前不要删除这些配置**。
 - 宿主现有控制 API 在 `apps/desktop-host/src/course-workflow-api.ts`，认证路由为 `POST /api/better-learning/workflow`，其 `initialize` 要求课程目录已经存在且属于注册工作区的根目录或直接子目录。目前既无“聊天附件 → 课程目录”创建动作，也无 UI 调用此 API。应先定义由哪个层创建目录、绑定 Session 与课程、持久化用户确认，再连接阶段推进。不要仅在客户端拦截发送后创建空游标。
 - DSH 有模型可调用工具注册模式：`packages/skill/tool-skill/src/index.ts` 使用 `defineTool` 和 `ctx.tools.register`，可作为宿主原生课程操作工具的参考。工具执行可从当前 Agent 的 Session 取得 `cwd`，但应复用宿主的课程边界校验和同一游标实例，避免工具与 HTTP API 各持一份状态。
+
+## 2026-09-29 后续实现：原生策略、视觉探针、整批派发、恢复
+
+本节优先于上文“尚未完成”的旧状态描述。迁移版现在**不再强制调用 skill**：专用预设禁用 `skill-filesystem` 与 `tool-skill`，资源移到 `apps/desktop/resources/workflows/better-learning`，新增 `runtime-policy.md`；`course_workflow guide` 读取应用拥有的规范与模板。Electron 和 `start-studio.ps1` 改用 `BLS_WORKFLOW_ROOT`，打包资源目录也改为 `workflows`。Host 入口以该根目录下的 `scripts` 调用 Python；此前 `BLS_SKILL_ROOT` 指向 skills 父目录而少拼一层 `better-learning`，已修正。
+
+Host `course_workflow` 工具与 HTTP 共用游标。模型工具限定当前真实根 Agent 的 Session 目录或其直接子课程；`propose` 保存目标／范围／基础摘要，`confirm` 要求后续真实用户回合。`inspect` 只读，启动扫描和显式 `reconcile` 才把运行中阶段标为 `needs_review`。旧课程不被自动转换，但可用 `guide` 读阶段规范。`probe` 启动只带 `read_image` 与 `write` 的全新 DSH 子代理，读取随机挑战图、写结果，由 Python 验证；主代理不看图。失败暂停课程。`transcribe-batch` 通过脚本整批预约，启动每个独立子代理，登记真实 DSH ID，等待真实终态并 `dispose` 后收集；启动失败释放预约。暂停期间启动／停止的竞争已用启动屏障处理。看门狗将静默异常去重提醒给根 Agent。
+
+转写阶段显式 `resume` 会先检查当前 Host Agent 名册及应用内活动批次；有成员仍存活就拒绝。对当前进程已不存在的登记成员运行脚本 `recover`，对未登记预约运行 `fail-attempt SPAWN_FAILURE`，然后才把游标改为 `ready`。这依赖 DSH 子代理受本 Host 进程所有的生命周期；**尚需真实强制中断测试**验证重启时的名册和租约路径。`course-transcription-recovery.ts` 的本地测试覆盖已停止、未登记与仍运行的情况。
+
+验证：Host 与 Electron TypeScript 检查、各自 `tsdown` bundle、6 个 Host 聚焦 Vitest 文件（22 项；之后另加一个批次停止竞态测试与一个 guide 兼容测试，局部重跑通过）、聚焦 oxlint、中英文档配对、27 项随包 Python 测试通过；新位置的 `convert_materials.py --help` 用随包 Python 成功运行。Python 测试中一条 Windows 子线程出现 UTF-8 解码堆栈噪声，但总结果 27/27 与进程返回码 0。没有调用用户模型 API，也没有修改原课程产物或配置。`verify-cordis-config.ts` 上次仍被不相关的 `apps/cli/tests/profiles/acp/cordis.yml` 阻断；第三方声明预提交门槛的 `pypdf PYTHON_METADATA` 问题仍待修复。按本节新增的代码还需做最终全套聚焦测试与 Git 提交。
+
+下一步：先验证真实 Electron 开发版能装载新 `BLS_WORKFLOW_ROOT` 与专用预设，检查 `course_workflow guide` 实际注册；在隔离小课程里跑一次不花模型 token 的 `initialize` 与恢复脚本。然后审视聊天附件与课程目录绑定，把用户发起的课程目标和附件稳妥接入原生游标，不绕开 Session admission；继续补齐材料盘点、知识／讲义／卡片的宿主机械阶段动作。最后用小型 PDF＋PPTX/DOCX 资料做真实迁移版端到端和强制中断验收，注意 API 用量。当前尚不能声称完整迁移验收完成。

@@ -4,9 +4,16 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-agent'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-subagent'
+import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { CourseWatchdog, type CourseAttemptHealth, type CourseWatchdogInput, type CourseWatchdogStatus } from './course-watchdog.ts'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'course-watchdog': { kind: 'course-watchdog'; form: 'notice'; summary: string }
+  }
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -94,6 +101,8 @@ export interface CourseWatchdogPolicy {
 export class CourseWatchdogService {
   private readonly active = new Map<string, CourseWatchdog>()
   private readonly settledIds = new Set<string>()
+  private readonly parents = new Map<string, Agent>()
+  private readonly alerted = new Map<string, string>()
 
   constructor(private readonly ctx: Context, private readonly policy: CourseWatchdogPolicy) {
     ctx.on('subagent/end', ({ id }) => {
@@ -103,16 +112,18 @@ export class CourseWatchdogService {
         void watchdog.memberSettled().catch((error: unknown) => { console.error('course watchdog:', error) })
       }
     })
-    ctx.effect(() => async () => { await Promise.all([...this.active.values()].map(item => item.stop())) })
+    ctx.effect(() => async () => { await Promise.all([...this.active.keys()].map(course => this.stop(course))) })
   }
 
   /** Begin timed checks after a transcription stage starts. */
-  start(course: string): Promise<CourseWatchdogStatus> {
+  start(course: string, parent?: Agent): Promise<CourseWatchdogStatus> {
+    if (parent !== undefined) this.parents.set(course, parent)
     let watchdog = this.active.get(course)
     if (watchdog === undefined) {
       watchdog = new CourseWatchdog(
         () => inspectCourseAttempts(course, new Set(this.ctx.agents.list().map(agent => agent.id)), this.settledIds),
-        status => persistStatus(course, status), this.policy.intervalMs, this.policy.silentMs,
+        async (status) => { await persistStatus(course, status); this.notifyParent(course, status) },
+        this.policy.intervalMs, this.policy.silentMs,
       )
       this.active.set(course, watchdog)
     }
@@ -124,6 +135,8 @@ export class CourseWatchdogService {
     const watchdog = this.active.get(course)
     this.active.delete(course)
     await watchdog?.stop()
+    this.parents.delete(course)
+    this.alerted.delete(course)
     if (this.active.size === 0) this.settledIds.clear()
   }
 
@@ -136,5 +149,24 @@ export class CourseWatchdogService {
       status => persistStatus(course, status), this.policy.intervalMs, this.policy.silentMs,
     )
     return temporary.check()
+  }
+
+  private notifyParent(course: string, status: CourseWatchdogStatus): void {
+    if (status.silentAttemptIds.length === 0) {
+      this.alerted.delete(course)
+      return
+    }
+    const signature = [...status.silentAttemptIds].sort().join(',')
+    if (this.alerted.get(course) === signature) return
+    const parent = this.parents.get(course)
+    if (parent === undefined || this.ctx.agents.get(parent.id) !== parent) return
+    const summary = `视觉转写长期无进展：${signature}`
+    try {
+      parent.followup(createUserMessage({
+        content: [{ type: 'text', text: `${summary}。请先核对内置看门狗状态和成员真实状态；成员仍在运行则继续等待，确认停止后才恢复或重派。` }],
+        source: { kind: 'course-watchdog', form: 'notice', summary: boundContextSummary(summary) },
+      }))
+      this.alerted.set(course, signature)
+    } catch (error) { console.error('course watchdog: could not notify parent:', error) }
   }
 }

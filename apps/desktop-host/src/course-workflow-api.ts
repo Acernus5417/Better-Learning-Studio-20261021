@@ -1,17 +1,66 @@
 /** Authenticated Desktop API for application-owned course stage control. */
 
-import { access, readdir, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { access, readFile, readdir, realpath, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-workspace'
+import type {} from '@deepseek-ai/dsh-session-projection'
+import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { parentAgentOptionsForDelegation } from '@deepseek-ai/dsh-subagent'
+import { defineTool } from '@deepseek-ai/dsh-tools'
 import { installPrimaryRuntime } from '@deepseek-ai/dsh-tool-workspace-dependencies'
 import { CourseWorkflow } from './course-workflow.ts'
-import { createCourseStageVerifier, inspectCoursePlan, writeCourseConfirmation, type CourseVerifierRuntime } from './course-stage-verifier.ts'
+import {
+  createCourseStageVerifier, inspectCoursePlan, runCourseMaterials, writeCourseConfirmation,
+  type CourseVerifierRuntime,
+} from './course-stage-verifier.ts'
+import { CourseTranscriptionBatchService } from './course-transcription-batch.ts'
+import { CourseVisionProbeService } from './course-vision-probe.ts'
+import { recoverStoppedCourseAttempts } from './course-transcription-recovery.ts'
 import { CourseWatchdogService, type CourseWatchdogPolicy } from './course-watchdog-service.ts'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'course-batch': { kind: 'course-batch'; form: 'notice'; summary: string }
+  }
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const COURSE_GUIDES = {
+  overview: 'runtime-policy.md',
+  intake: 'references/intake.md',
+  'material-processing': 'references/material-processing.md',
+  'image-first': 'references/image-first.md',
+  'worker-policy': 'references/worker-policy.md',
+  'knowledge-model': 'references/knowledge-model.md',
+  'knowledge-store': 'references/knowledge-store.md',
+  'knowledge-chapter-template': 'assets/templates/knowledge-chapter.md',
+  'learning-path': 'references/learning-path.md',
+  'learning-path-template': 'assets/templates/learning-path.md',
+  'chapter-writing': 'references/chapter-writing.md',
+  'lesson-pipeline': 'references/lesson-pipeline.md',
+  'lesson-writing-policy': 'references/lesson-writing-policy.md',
+  'learning-chapter-template': 'assets/templates/learning-chapter.md',
+  'core-cards': 'references/core-cards.md',
+  'obsidian-links': 'references/obsidian-links.md',
+  'core-card-template': 'assets/templates/core-card.md',
+  'quality-checks': 'references/quality-checks.md',
+  'delivery-layout': 'references/delivery-layout.md',
+} as const
+type CourseGuide = keyof typeof COURSE_GUIDES
+
+async function readCourseGuide(
+  scripts: string, section: string,
+): Promise<{ section: CourseGuide; scriptsRoot: string; content: string }> {
+  if (!Object.hasOwn(COURSE_GUIDES, section)) throw new Error('course workflow: unknown guide section')
+  const name = section as CourseGuide
+  return { section: name, scriptsRoot: scripts,
+    content: await readFile(join(scripts, '..', COURSE_GUIDES[name]), 'utf8') }
 }
 
 /** Resolve only directories inside a workspace already registered by the Desktop app. */
@@ -26,13 +75,55 @@ export async function resolveRegisteredCourse(
     || relativeCourse.includes('/') || relativeCourse.includes('\\'))) {
     throw new Error('course workflow: invalid relative course path')
   }
-  const directory = await realpath(resolve(workspace.path, relativeCourse))
-  const child = relative(workspace.path, directory)
+  const workspaceRoot = await realpath(workspace.path)
+  const directory = await realpath(resolve(workspaceRoot, relativeCourse))
+  const child = relative(workspaceRoot, directory)
   if (child === '..' || child.startsWith(`..${sep}`) || isAbsolute(child)) {
     throw new Error('course workflow: course directory escapes workspace')
   }
+  if (relativeCourse !== '.' && child.includes(sep)) {
+    throw new Error('course workflow: course must be a direct workspace child')
+  }
   if (!(await stat(directory)).isDirectory()) throw new Error('course workflow: course path is not a directory')
   return directory
+}
+
+/** The model tool can address only its own Session workspace or one direct child. */
+export async function resolveAgentCourse(
+  workspaces: readonly { readonly id: string; readonly path: string }[], cwd: string, course: string,
+): Promise<string> {
+  const root = await realpath(cwd)
+  for (const workspace of workspaces) {
+    let workspaceRoot: string
+    try { workspaceRoot = await realpath(workspace.path) }
+    catch { continue } // An unavailable unrelated workspace cannot block the current Session.
+    const child = relative(workspaceRoot, root)
+    if (child === '') return resolveRegisteredCourse(workspaces, workspace.id, course)
+    if (child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child)
+      && !child.includes(sep) && course === '.') {
+      return resolveRegisteredCourse(workspaces, workspace.id, child)
+    }
+  }
+  throw new Error('course workflow: session is outside a registered course workspace')
+}
+
+/** A model may commit intake only during a live root turn containing direct human input. */
+export function requireHumanCourseConfirmation(ctx: Context, agent: Agent): number {
+  if (ctx.agents.get(agent.id) !== agent || agent.status !== 'running'
+    || ctx.agents.currentInitiator() !== agent || !ctx.agents.roots().includes(agent)) {
+    throw new Error('course workflow: confirmation requires the live root agent')
+  }
+  const boundary = ctx.sessionProjections.stateOf(agent.session, 'turnBoundary')
+  if (boundary?.openTurnStartSeq === null || boundary === undefined) {
+    throw new Error('course workflow: confirmation requires an open human turn')
+  }
+  // oxlint-disable-next-line typescript/no-deprecated -- Current Session log authority read.
+  const events = agent.session.snapshotEvents()
+  for (let seq = boundary.openTurnStartSeq + 1; seq < events.length; seq += 1) {
+    const event = events[seq]
+    if (event?.type === 'user/message' && event.data.source.kind === 'user') return seq
+  }
+  throw new Error('course workflow: confirmation requires a direct human message in this turn')
 }
 
 /** Discover native cursors in the supported workspace-root or direct-child layout. */
@@ -74,8 +165,10 @@ export async function installCourseWorkflowApi(
   if (!isAbsolute(source) || !isAbsolute(installRoot) || !isAbsolute(scripts)) {
     throw new Error('course workflow: runtime paths must be absolute')
   }
-  if (ctx.get('workspaceRegistry') === undefined || ctx.get('connection') === undefined) {
-    throw new Error('course workflow: Workspace and Connection services are required')
+  if (ctx.get('workspaceRegistry') === undefined || ctx.get('connection') === undefined
+    || ctx.get('tools') === undefined || ctx.get('agents') === undefined || ctx.get('subagents') === undefined
+    || ctx.get('sessionProjections') === undefined) {
+    throw new Error('course workflow: Workspace, Connection, Tools, Agents, Subagents, and projections are required')
   }
   let runtimePromise: Promise<CourseVerifierRuntime> | undefined
   const runtime = (): Promise<CourseVerifierRuntime> => runtimePromise ??= installPrimaryRuntime(source, installRoot)
@@ -92,9 +185,158 @@ export async function installCourseWorkflowApi(
     }
     return item
   }
+  const batches = new CourseTranscriptionBatchService(
+    async (course, args) => runCourseMaterials(await runtime(), course, args),
+    (parent, bootstrap, signal) => ctx.subagents.start('spawn', {
+      parent, signal, prompt: [{ type: 'text', text: bootstrap }],
+      agentOptions: parentAgentOptionsForDelegation(parent),
+      toolFilter: { allow: ['read', 'read_image', 'write', 'edit'] }, maxDepth: 1,
+      persona: '你是 Better Learning Studio 的独立视觉转写成员。只按任务文件和策略看图、忠实转写并写入分配的暂存文件；不教学、不猜写、不读取其他课程资料。只回短状态。',
+    }),
+    async (parent, course, outcomes) => {
+      const unavailable = outcomes.some(item => item.outcome === 'vision_unavailable')
+      if (unavailable) {
+        const state = await workflow(course).inspect()
+        if (state?.stage === 'transcription' && state.status === 'running') {
+          await workflow(course).pause('视觉模型无法可靠读取图片；请调整模型后重新运行探针')
+          await watchdogs.stop(course)
+        }
+      } else await watchdogs.check(course)
+      if (ctx.agents.get(parent.id) !== parent) return
+      const issues = outcomes.filter(item => item.outcome !== 'complete').length
+      const summary = `视觉转写一批 ${outcomes.length} 个成员已结束${issues > 0 ? `，${issues} 项待检查` : ''}`
+      parent.followup(createUserMessage({
+        content: [{ type: 'text', text: `${summary}。${unavailable
+          ? '视觉能力未通过，课程已暂停；向学习者说明并等待调整模型。'
+          : '宿主已按真实成员终态收集结果。请检查课程状态，未完成时继续调用 course_workflow transcribe-batch；资料转写全部完成后再验收当前阶段。'}` }],
+        source: { kind: 'course-batch', form: 'notice', summary: boundContextSummary(summary) },
+      }))
+    },
+  )
+  const probes = new CourseVisionProbeService(
+    async (course, args) => runCourseMaterials(await runtime(), course, args),
+    (parent, prompt, signal) => ctx.subagents.start('spawn', {
+      parent, signal, prompt: [{ type: 'text', text: prompt }],
+      agentOptions: parentAgentOptionsForDelegation(parent),
+      toolFilter: { allow: ['read_image', 'write'] }, maxDepth: 1,
+      persona: '你是 Better Learning Studio 的独立视觉探针成员。严格按当前提示实际读图，只写指定 JSON；不读取其他文件、脚本或历史答案。只回简短状态。',
+    }),
+  )
+  ctx.effect(() => async () => { await batches.stop() })
   for (const course of await discoverSavedCourses(ctx.workspaceRegistry.list())) {
     try { await workflow(course).reconcile() }
     catch (error) { console.error(`course workflow: recovery failed for ${course}:`, error) }
+  }
+  const perform = async (
+    course: string, action: string, model?: string, reason?: string, summary?: string, humanSeq?: number,
+    section?: string,
+    parent?: Agent, signal?: AbortSignal,
+  ): Promise<unknown> => {
+    const cursor = workflow(course)
+    switch (action) {
+      case 'inspect': {
+        return cursor.inspect()
+      }
+      case 'guide': {
+        const state = await cursor.inspect()
+        if (section === undefined) return { stage: state?.stage ?? 'legacy', scriptsRoot: scripts,
+          available: Object.keys(COURSE_GUIDES) }
+        return readCourseGuide(scripts, section)
+      }
+      case 'initialize': {
+        if (await cursor.inspect() !== null) throw new Error('course workflow: this course already has a cursor')
+        try {
+          await access(resolve(course, '_工作区', '生成进度.json'))
+          throw new Error('course workflow: a legacy course exists here; explicit migration is required')
+        } catch (error) {
+          if (!record(error) || error.code !== 'ENOENT') throw error
+        }
+        const plan = await inspectCoursePlan(await runtime(), course)
+        return { plan, state: await cursor.initialize() }
+      }
+      case 'propose': {
+        if (summary === undefined || humanSeq === undefined) throw new Error('course workflow: intake summary is required')
+        return cursor.propose(summary, humanSeq)
+      }
+      case 'confirm':
+      case 'change-model': {
+        if (model === undefined) throw new Error('course workflow: model is required')
+        return action === 'confirm'
+          ? cursor.confirm(model, async () => writeCourseConfirmation(await runtime(), course))
+          : cursor.changeModel(model)
+      }
+      case 'start': {
+        const started = await cursor.start()
+        if (started.stage === 'transcription') {
+          try { await watchdogs.start(course, parent) }
+          catch (error) {
+            await watchdogs.stop(course)
+            await cursor.pause('看门狗无法启动，请检查转写台账后重试')
+            throw error
+          }
+        }
+        return started
+      }
+      case 'transcribe-batch': {
+        const state = await cursor.inspect()
+        if (state?.stage !== 'transcription' || state.status !== 'running'
+          || model === undefined || parent === undefined || signal === undefined) {
+          throw new Error('course workflow: a running transcription stage and root agent are required')
+        }
+        const result = await batches.start(course, model, parent, signal)
+        if (result.blocked !== null && result.started.length === 0 && !result.batchOpen) {
+          await cursor.pause(`转写派发受阻：${result.blocked}`)
+          await watchdogs.stop(course)
+        }
+        return result
+      }
+      case 'probe': {
+        const state = await cursor.inspect()
+        if (state?.stage !== 'transcription' || state.status !== 'running'
+          || model === undefined || parent === undefined || signal === undefined) {
+          throw new Error('course workflow: a running transcription stage and root agent are required')
+        }
+        try { return await probes.run(course, model, parent, signal) }
+        catch (error) {
+          await cursor.pause('视觉能力探针未通过；请调整多模态模型后重试')
+          await watchdogs.stop(course)
+          throw error
+        }
+      }
+      case 'complete-stage': {
+        const before = await cursor.inspect()
+        const result = await cursor.completeStage()
+        if (before?.stage === 'transcription') await watchdogs.stop(course)
+        return result
+      }
+      case 'reconcile': {
+        const reconciled = await cursor.reconcile()
+        if (reconciled.state.stage === 'transcription' && reconciled.state.status !== 'running') {
+          await watchdogs.stop(course)
+        }
+        return reconciled
+      }
+      case 'resume': {
+        const state = await cursor.inspect()
+        if (state?.status !== 'paused' && state?.status !== 'needs_review') {
+          throw new Error('course workflow: course is not paused')
+        }
+        if (state.stage === 'transcription') {
+          await recoverStoppedCourseAttempts(course, new Set(ctx.agents.list().map(agent => agent.id)),
+            batches.hasActive(course), async (root, args) => runCourseMaterials(await runtime(), root, args))
+        }
+        return cursor.resume()
+      }
+      case 'watchdog': return watchdogs.check(course)
+      case 'pause': {
+        if (reason === undefined || reason.trim() === '') throw new Error('course workflow: reason is required')
+        const result = await cursor.pause(reason)
+        await batches.stopCourse(course)
+        await watchdogs.stop(course)
+        return result
+      }
+      default: throw new Error('course workflow: unknown action')
+    }
   }
   ctx.connection.fetch.register({
     path: '/api/better-learning/workflow', methods: ['POST'], requestBody: 'buffered',
@@ -106,74 +348,62 @@ export async function installCourseWorkflowApi(
         if (!record(input) || typeof input.workspaceId !== 'string' || typeof input.course !== 'string'
           || typeof input.action !== 'string') return new Response('invalid request', { status: 400 })
         const course = await resolveRegisteredCourse(ctx.workspaceRegistry.list(), input.workspaceId, input.course)
-        const cursor = workflow(course)
-        let result: unknown
-        switch (input.action) {
-          case 'inspect': {
-            const current = await cursor.inspect()
-            result = current === null ? null : (await cursor.reconcile()).state
-            if (record(result) && result.stage === 'transcription' && result.status !== 'running') {
-              await watchdogs.stop(course)
-            }
-            break
-          }
-          case 'initialize': {
-            if (await cursor.inspect() !== null) throw new Error('course workflow: this course already has a cursor')
-            const plan = await inspectCoursePlan(await runtime(), course)
-            result = { plan, state: await cursor.initialize() }
-            break
-          }
-          case 'confirm':
-          case 'change-model': {
-            if (typeof input.model !== 'string') return new Response('model is required', { status: 400 })
-            result = input.action === 'confirm'
-              ? await cursor.confirm(input.model, async () => writeCourseConfirmation(await runtime(), course))
-              : await cursor.changeModel(input.model)
-            break
-          }
-          case 'start': {
-            const started = await cursor.start()
-            if (started.stage === 'transcription') {
-              try { await watchdogs.start(course) }
-              catch (error) {
-                await watchdogs.stop(course)
-                await cursor.pause('看门狗无法启动，请检查转写台账后重试')
-                throw error
-              }
-            }
-            result = started
-            break
-          }
-          case 'complete-stage': {
-            const before = await cursor.inspect()
-            result = await cursor.completeStage()
-            if (before?.stage === 'transcription') await watchdogs.stop(course)
-            break
-          }
-          case 'reconcile': {
-            const reconciled = await cursor.reconcile()
-            if (reconciled.state.stage === 'transcription' && reconciled.state.status !== 'running') {
-              await watchdogs.stop(course)
-            }
-            result = reconciled
-            break
-          }
-          case 'resume': result = await cursor.resume(); break
-          case 'watchdog': result = await watchdogs.check(course); break
-          case 'pause': {
-            if (typeof input.reason !== 'string' || input.reason.trim() === '') {
-              return new Response('reason is required', { status: 400 })
-            }
-            result = await cursor.pause(input.reason)
-            await watchdogs.stop(course)
-            break
-          }
-          default: return new Response('unknown action', { status: 400 })
+        if (!['inspect', 'initialize', 'confirm', 'change-model', 'start', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog']
+          .includes(input.action)) return new Response('unknown action', { status: 400 })
+        if ((input.action === 'confirm' || input.action === 'change-model') && typeof input.model !== 'string') {
+          return new Response('model is required', { status: 400 })
         }
+        if (input.action === 'pause' && (typeof input.reason !== 'string' || input.reason.trim() === '')) {
+          return new Response('reason is required', { status: 400 })
+        }
+        const result = await perform(course, input.action,
+          typeof input.model === 'string' ? input.model : undefined,
+          typeof input.reason === 'string' ? input.reason : undefined)
         return Response.json(result)
       } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 409 })
       }
     },
   })
+  ctx.tools.register(defineTool({
+    name: 'course_workflow',
+    description: 'Inspect or advance the application-owned Better Learning course workflow. Initialize before writing course output, then use guide overview and stage-specific sections instead of loading a skill. Save a proposed intake summary and confirm only in a later direct human turn. During transcription, probe verifies the current model with a fresh image-reading child; transcribe-batch reserves one full batch, starts fresh visual children, and collects each only after its real terminal result. Complete each stage only after saved artifacts pass validation.',
+    parameters: {
+      action: { type: 'string', required: true,
+        enum: ['inspect', 'guide', 'initialize', 'propose', 'confirm', 'change-model', 'start', 'probe', 'transcribe-batch', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog'] },
+      course: { type: 'string', description: 'Current Session course directory (.) or one direct child of its registered workspace.' },
+      section: { type: 'string', description: 'For guide: overview or a named stage reference/template. Omit to list available sections.' },
+      summary: { type: 'string', description: 'Required for propose: the learner-facing summary of goal, complete material scope, and baseline.' },
+      reason: { type: 'string', description: 'Required reason when pausing a running stage.' },
+    },
+    output: {
+      schema: { type: 'object', additionalProperties: false, properties: {
+        result: { type: 'string', required: true },
+      } },
+      render: (_args, value) => [{ type: 'text', text: value.result }],
+    },
+    timeoutMs: 330_000,
+    async execute(args, exec) {
+      const agent = exec.agent
+      if (agent === undefined || ctx.agents.get(agent.id) !== agent || !ctx.agents.roots().includes(agent)) {
+        throw new Error('course workflow: a live root agent is required')
+      }
+      const cwd = agent.session.header.cwd
+      if (cwd === undefined) throw new Error('course workflow: session has no course workspace')
+      const course = await resolveAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course ?? '.')
+      const humanSeq = args.action === 'propose' || args.action === 'confirm'
+        ? requireHumanCourseConfirmation(ctx, agent) : undefined
+      if (args.action === 'confirm') {
+        const proposed = (await workflow(course).inspect())?.intakeProposal
+        if (proposed === undefined || humanSeq === undefined || humanSeq <= proposed.humanSeq) {
+          throw new Error('course workflow: wait for the learner to confirm the saved intake proposal in a later turn')
+        }
+      }
+      const model = agent.session.requestHeader()?.config.model ?? agent.options.model
+      const result = await perform(course, args.action, model, args.reason, args.summary, humanSeq,
+        args.section, agent, exec.signal)
+      return { result: JSON.stringify(result) }
+    },
+    presentCall: args => ({ card: 'generic', title: `Course workflow: ${args.action}`, kind: 'other' }),
+  }))
 }

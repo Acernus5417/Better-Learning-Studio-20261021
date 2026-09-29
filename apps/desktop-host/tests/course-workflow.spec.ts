@@ -13,6 +13,19 @@ async function course(): Promise<string> {
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))) })
 
 describe('native course workflow cursor', () => {
+  it('persists an intake proposal for the learner to confirm or amend', async () => {
+    const root = await course()
+    const workflow = new CourseWorkflow(root, async () => null)
+    await workflow.initialize()
+    await expect(workflow.propose(' ', 2)).rejects.toThrow('invalid intake proposal')
+    expect(await workflow.propose('  目标：理解图示；资料：三份；基础：初学  ', 2))
+      .toMatchObject({ status: 'waiting_confirmation', intakeProposal: {
+        summary: '目标：理解图示；资料：三份；基础：初学', humanSeq: 2,
+      } })
+    const restarted = new CourseWorkflow(root, async () => null)
+    expect((await restarted.inspect())?.intakeProposal?.humanSeq).toBe(2)
+  })
+
   it('admits stages only after a real verifier result and completes at delivery', async () => {
     const root = await course()
     const receipts = new Map<CourseStage, CourseStageEvidence>()

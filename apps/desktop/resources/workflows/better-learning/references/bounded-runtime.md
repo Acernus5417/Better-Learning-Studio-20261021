@@ -18,7 +18,7 @@
 
 ## 注册版本与预算
 
-`policy_registry(stage, skill_root=None)` 对阶段关联的 `SKILL.md`、宿主适配、参考规范、模板、验证脚本和运行时源码逐项保存绝对路径、SHA-256 与字节数。
+`policy_registry(stage, skill_root=None)` 对阶段关联的 `runtime-policy.md`、宿主适配、参考规范、模板、验证脚本和运行时源码逐项保存绝对路径、SHA-256 与字节数。
 支持 `transcription / knowledge / path / lesson / cards / relations / quality`。
 任务规格同时绑定原始输入、配置哈希、规范注册表和写作者宿主回执；任一内容变化使旧任务失效，须创建新任务 ID。
 schema v2 不自动迁移旧版数据库，版本不一致直接报错；旧数据应保留用于审计。

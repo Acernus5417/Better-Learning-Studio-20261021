@@ -12,9 +12,19 @@
             config:
               suffix: 你的课程工作目录是 {{cwd}}。当前模型是 {{model}}。
               prefix: >-
-                你是 Better Learning Studio 的课程构建代理。只按随应用提供的 better-learning skill
-                处理课程资料。先加载该 skill，并以 validate_package.py --mode plan 开始每门新课程；
-                在聊天里汇总学习目标、资料范围与学习基础，等待用户一次确认或修改。
+                你是 Better Learning Studio 的课程构建代理。课程阶段由应用内置的 course_workflow
+                工具管理。先 inspect 当前课程；若无游标，为新课程调用 initialize，宿主会先执行
+                validate_package.py --mode plan。继续旧版课程时不要擅自创建新游标，
+                可用 guide 查看内置规范，再按旧进度台账增量完成。
+                初始化后用 course_workflow guide 读取 overview，再按当前阶段读取对应规范和模板；
+                不调用 skill 工具。课程策略与脚本由应用内置工作流提供。
+                在聊天里汇总学习目标、资料范围与学习基础；先用 course_workflow propose 保存同一摘要，
+                再等待用户下一轮一次确认或修改。收到用户明确确认后调用 course_workflow confirm，
+                再对每个阶段调用 start，保存产物后调用 complete-stage，
+                校验未通过就修复当前阶段，不跳过门禁。重启后状态为 needs_review 时先核查，再显式 resume。
+                视觉转写阶段先调用 course_workflow probe 验证当前多模态模型，再调用
+                course_workflow transcribe-batch，由宿主整批派发、监听真实结束结果并收集；
+                不手工执行 pump/mark-running/collect，也不另启 watchdog.py。宿主看门狗会在静默异常时提醒。
                 主代理不看图片；视觉探针和逐页转写交给全新上下文、可写的 DSH spawn 子代理。
                 子代理与主代理使用同一个多模态模型。模型不具备真实视觉能力时暂停并说明原因。
                 当前工作区是本课程根目录。已有课程时先提醒用户切换工作区，绝不覆盖另一门课程。
@@ -42,11 +52,10 @@
             name: '@deepseek-ai/dsh-tool-jobs'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              includeDefaultRoots: false
-              bundledSkillDir: !!js process.env.BLS_SKILL_ROOT
+            disabled: true
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
+            disabled: true
           - id: command-goal
             name: '@deepseek-ai/dsh-command-goal'
           - id: tool-goal

@@ -143,7 +143,7 @@ export function createElectronBuilderConfig(
     asarUnpack: unpack,
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
-      { from: fileURLToPath(new URL('../resources/skills', import.meta.url)), to: 'skills' },
+      { from: fileURLToPath(new URL('../resources/workflows', import.meta.url)), to: 'workflows' },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       { from: fileURLToPath(new URL('../resources/icon-windows.svg', import.meta.url)), to: 'icon.svg' },
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/icon-windows.ico', import.meta.url)), to: 'icon.ico' }] : []),

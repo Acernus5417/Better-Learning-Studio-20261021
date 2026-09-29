@@ -105,10 +105,10 @@ async function main(): Promise<void> {
     source: process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime'),
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
-  const skillRoot = process.env.BLS_SKILL_ROOT
-  if (skillRoot !== undefined) {
+  const workflowRoot = process.env.BLS_WORKFLOW_ROOT
+  if (workflowRoot !== undefined) {
     await installCourseWorkflowApi(ctx, process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime'),
-      join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'), join(skillRoot, 'scripts'), {
+      join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'), join(workflowRoot, 'scripts'), {
         intervalMs: positiveMilliseconds('BLS_WATCHDOG_INTERVAL_MS', 90_000),
         silentMs: positiveMilliseconds('BLS_WATCHDOG_SILENT_MS', 900_000),
       })

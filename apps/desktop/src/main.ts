@@ -316,9 +316,9 @@ async function main(): Promise<void> {
   if (process.env.DSH_HOME === undefined || process.env.DSH_HOME.trim() === '') {
     process.env.DSH_HOME = join(app.getPath('appData'), 'BetterLearningStudio-DSH', 'dsh')
   }
-  process.env.BLS_SKILL_ROOT = app.isPackaged
-    ? join(process.resourcesPath, 'skills')
-    : fileURLToPath(new URL('../resources/skills', import.meta.url))
+  process.env.BLS_WORKFLOW_ROOT = app.isPackaged
+    ? join(process.resourcesPath, 'workflows', 'better-learning')
+    : fileURLToPath(new URL('../resources/workflows/better-learning', import.meta.url))
   void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())

@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop-host/README.md
 /:
-  en: cf89c6d330f10437
-  zh: dc081c305b8cbe4f
+  en: 11ccbf143e386fba
+  zh: 7d758679261eb995
 /better-learning-studio-host-workflow:
-  en: 8df62fe6df84a4a1
-  zh: 3f2d4f13f11a13c0
+  en: 9495bc073f00a1b1
+  zh: 60ea85c5b287c0cb

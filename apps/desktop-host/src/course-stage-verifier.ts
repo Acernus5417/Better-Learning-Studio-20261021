@@ -42,13 +42,30 @@ function evidence(value: unknown, summary: string): CourseStageEvidence {
   return { signature: createHash('sha256').update(JSON.stringify(value)).digest('hex'), summary }
 }
 
+function scriptEnvironment(): NodeJS.ProcessEnv {
+  return { ...Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+    !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name))), PYTHONDONTWRITEBYTECODE: '1' }
+}
+
+/** Run one owned materials-ledger command without exposing process credentials. */
+export async function runCourseMaterials(
+  runtime: CourseVerifierRuntime, course: string, args: readonly string[],
+): Promise<Record<string, unknown>> {
+  const { stdout } = await execute(runtime.python, [join(runtime.scripts, 'convert_materials.py'), '--course', course, ...args], {
+    windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024, env: scriptEnvironment(),
+  })
+  const value: unknown = JSON.parse(stdout)
+  if (!record(value) || value.error !== undefined || (Array.isArray(value.errors) && value.errors.length > 0)) {
+    throw new Error(`course materials: ${args[0] ?? 'command'} returned an invalid or rejected result`)
+  }
+  return value
+}
+
 async function accepted(runtime: CourseVerifierRuntime, course: string, script: string, args: string[]): Promise<boolean> {
-  const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
-    !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name)))
   try {
     const { stdout } = await execute(runtime.python, [join(runtime.scripts, script), '--course', course, ...args], {
       windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024,
-      env: { ...environment, PYTHONDONTWRITEBYTECODE: '1' },
+      env: scriptEnvironment(),
     })
     // The scripts sometimes return a compact report path in bounded mode.
     const result: unknown = JSON.parse(stdout)
@@ -73,8 +90,7 @@ export async function inspectCoursePlan(runtime: CourseVerifierRuntime, course: 
   try {
     await execute(runtime.python, [join(runtime.scripts, 'validate_package.py'), '--course', course, '--mode', 'plan'], {
       windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024,
-      env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) =>
-        !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name))), PYTHONDONTWRITEBYTECODE: '1' },
+      env: scriptEnvironment(),
     })
   } catch (error) {
     if (!record(error) || error.code !== 1) throw error
