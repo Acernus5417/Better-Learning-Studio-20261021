@@ -188,6 +188,34 @@ describe('Conversation inject API', () => {
     expect(contributions.size).toBe(0)
   })
 
+  it('adds a picked desktop folder as a draft reference', async () => {
+    const pick = vi.fn(async () => '/proj/course materials')
+    vi.stubGlobal('__BLS_STUDIO__', true)
+    vi.stubGlobal('__DSH_DIRECTORY_PICKER__', { pick })
+    const b = await bench()
+    onTestFinished(async () => { await b.runtime.dispose(); vi.unstubAllGlobals() })
+    const contributions = new Map<string, CommandContribution>()
+    b.runtime.ctx.provide('commandUi', {
+      register: (contribution: CommandContribution) => {
+        contributions.set(contribution.name, contribution)
+        return () => { contributions.delete(contribution.name) }
+      },
+    } satisfies Pick<CommandUiContract, 'register'>)
+    await vi.waitFor(() => { expect(contributions.has('folder')).toBe(true) })
+    const folder = contributions.get('folder')!
+    expect(folder.label!()).toBe('文件夹')
+    const target = { sessionId: ROOT }
+    expect(folder.available(target)).toBe(false)
+    const unbind = b.composerApi(ROOT).keyboard!.bindFilePicker({ open: vi.fn(), available: () => true })
+    onTestFinished(unbind)
+    expect(folder.available(target)).toBe(true)
+    if (folder.ui.kind !== 'action') throw new Error('Folder must be an action')
+    folder.ui.run(target)
+    await vi.waitFor(() => { expect(b.inputApi(ROOT).state.getSnapshot().draft).toBe('@"course materials/" ') })
+    expect(pick).toHaveBeenCalledOnce()
+    expect(b.inputApi(ROOT).state.getSnapshot().attachmentIds).toEqual([])
+  })
+
   it('assembles the target-neutral read face without Session side effects', async () => {
     const b = await bench()
     const { injected } = b.conversationApi(ROOT)
