@@ -222,7 +222,8 @@ export async function installCourseWorkflowApi(
       ...(office === undefined ? {} : { officeNode: office.node, officeCli: office.cli }) }))
     .catch((error: unknown) => { runtimePromise = undefined; throw error })
   const workflows = new Map<string, CourseWorkflow>()
-  const watchdogs = new CourseWatchdogService(ctx, watchdogPolicy)
+  let isBatchActive = (_course: string): boolean => false
+  const watchdogs = new CourseWatchdogService(ctx, watchdogPolicy, course => isBatchActive(course))
   const workflow = (course: string): CourseWorkflow => {
     let item = workflows.get(course)
     if (item === undefined) {
@@ -260,6 +261,7 @@ export async function installCourseWorkflowApi(
       }))
     },
   )
+  isBatchActive = course => batches.hasActive(course)
   const probes = new CourseVisionProbeService(
     async (course, args) => runCourseMaterials(await runtime(), course, args),
     (parent, prompt, signal) => ctx.subagents.start('spawn', {

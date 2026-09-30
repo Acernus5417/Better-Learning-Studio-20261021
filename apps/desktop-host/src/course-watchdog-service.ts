@@ -104,7 +104,10 @@ export class CourseWatchdogService {
   private readonly parents = new Map<string, Agent>()
   private readonly alerted = new Map<string, string>()
 
-  constructor(private readonly ctx: Context, private readonly policy: CourseWatchdogPolicy) {
+  constructor(
+    private readonly ctx: Context, private readonly policy: CourseWatchdogPolicy,
+    private readonly batchActive: (course: string) => boolean = () => false,
+  ) {
     ctx.on('subagent/end', ({ id }) => {
       if (this.active.size === 0) return
       this.settledIds.add(id)
@@ -152,18 +155,22 @@ export class CourseWatchdogService {
   }
 
   private notifyParent(course: string, status: CourseWatchdogStatus): void {
-    if (status.silentAttemptIds.length === 0) {
+    const orphans = this.batchActive(course) ? []
+      : [...status.stoppedAttemptIds.map(id => `stopped:${id}`),
+        ...status.unknownAttemptIds.map(id => `unknown:${id}`)]
+    const issues = [...status.silentAttemptIds.map(id => `silent:${id}`), ...orphans]
+    if (issues.length === 0) {
       this.alerted.delete(course)
       return
     }
-    const signature = [...status.silentAttemptIds].sort().join(',')
+    const signature = issues.sort().join(',')
     if (this.alerted.get(course) === signature) return
     const parent = this.parents.get(course)
     if (parent === undefined || this.ctx.agents.get(parent.id) !== parent) return
-    const summary = `视觉转写长期无进展：${signature}`
+    const summary = `视觉转写异常：${signature}`
     try {
       parent.followup(createUserMessage({
-        content: [{ type: 'text', text: `${summary}。请先核对内置看门狗状态和成员真实状态；成员仍在运行则继续等待，确认停止后才恢复或重派。` }],
+        content: [{ type: 'text', text: `${summary}。请检查内置看门狗状态与真实成员；仍在运行的成员继续等待。若批次已结束而尝试未收口，请暂停课程，再从待确认状态恢复并收集或释放遗留尝试。` }],
         source: { kind: 'course-watchdog', form: 'notice', summary: boundContextSummary(summary) },
       }))
       this.alerted.set(course, signature)

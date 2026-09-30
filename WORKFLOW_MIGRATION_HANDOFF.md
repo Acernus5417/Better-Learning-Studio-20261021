@@ -155,3 +155,9 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 隔离宿主流程脚本 `.desktop-cache/native-flow-smoke.mjs` 使用真实随包 Python/Office Kit 和新 `CourseWorkflow` 在临时课程目录完成 3 份资料的 inventory、plan、初始化／确认、materials 完成凭证、transcription 准备。结果 4 done＋3 pending、0 failed。新 `CourseWorkflow` 实例的 `reconcile` 把模拟中断的 transcription 从 running 改为 needs_review，显式 resume 后才 ready；修改已经通过校验的 DOCX 后又正确退回 materials/needs_review。另一未改源的隔离课程在 3 个视觉单元尚未完成时，`completeStage` 被拒绝。这是宿主与真实脚本的恢复门禁验收，**不是**真实 Agent 视觉读图、子代理真实生命周期或最终 packaged 验收。没有 API 消耗。用户原应用窗口再度报告人工输入检测，自动化未继续触碰。
 
 后续发现 `course-office-renders.ts` 初版仅允许 `原始资料/` 内源文件，但 `importCourseAttachments` 对用户明确选择的文件夹保存外部目录，并直接把该目录传给 inventory。已新增 `admittedCourseSourceRoots` 复用持久来源台账，拒绝 pending 导入、失效或包含课程的目录；Office 渲染只允许内部来源或已登记外部目录的真实子文件。聚焦测试覆盖未登记拒绝与登记后放行；`.desktop-cache/native-folder-smoke.mjs` 在课程外的 `Materials` 文件夹真实盘点、渲染和 prepare 同组三份资料，结果 3 来源、4 done、3 pending、0 failed。无 API 消耗。该代码提交前需重建 Host bundle 并核对 Git 状态。
+
+## 2026-09-30 桌面实测与看门狗提醒
+
+最新 Host 已构建，并在标准 Windows 会话里用 `start-studio.ps1 -SkipBuild` 启动；受限沙箱内会出现 Electron GPU 子进程失败和配置锁 EPERM，标准会话没有重现。实际窗口保留 Better Learning Studio 标识、better-learning 预设和用户已选的官方 `DeepSeek-V41-Flash`。加号有文件与文件夹；选择合成 `lesson.pdf` 后出现发送前附件卡片，含移除按钮，移除后卡片消失。随后文件夹选择器的完整辅助功能树读取被自动审批拒绝，理由是可能读取当前目录中无关的私人文件名和路径；已停止该 UI 路径并关闭测试进程。**没有发送消息或使用模型 API**。继续该 UI 验收需要以明确授权且只显示合成夹具的选择器环境进行，勿绕过此次拒绝。
+
+Host 的 `CourseWatchdogService` 以前只主动通知静默尝试；现在已停止或未知的尝试若在宿主拥有的批次结束后仍未收口，也会向仍存活的根代理发一次异常提醒。批次正常收尾期间抑制该提醒，避免 `subagent/end` 与 `collect` 之间误报。状态仍持久化在 `_工作区/内置看门狗.json`；恢复仍要求显式暂停／`resume`，不能把此变化称为自动重派。Host TypeScript、相关 13 项 Vitest 通过。下一项优先验证真实迁移版模型探针与成员生命周期，强制中断恢复，再以 packaged 收据验收整门小课程；记录实际 token 用量。
