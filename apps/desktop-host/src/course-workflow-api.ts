@@ -13,7 +13,8 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { installPrimaryRuntime } from '@deepseek-ai/dsh-tool-workspace-dependencies'
 import { CourseWorkflow, type CourseStage } from './course-workflow.ts'
 import {
-  createCourseStageVerifier, inspectCoursePlan, runCourseMaterials, runCourseScript, writeCourseConfirmation,
+  createCourseStageVerifier, inspectCoursePlan, resetCourseConfirmation, runCourseMaterials, runCourseScript,
+  writeCourseConfirmation,
   type CourseVerifierRuntime,
 } from './course-stage-verifier.ts'
 import { CourseTranscriptionBatchService } from './course-transcription-batch.ts'
@@ -306,7 +307,10 @@ export async function installCourseWorkflowApi(
         if (state?.stage !== 'materials') {
           throw new Error('course workflow: inventory can be refreshed only during the materials stage')
         }
-        return refreshCourseInventory(course, await runtime(), ctx.attachments)
+        const installed = await runtime()
+        const refreshed = await refreshCourseInventory(course, installed, ctx.attachments)
+        if (state.status === 'waiting_confirmation') await resetCourseConfirmation(installed, course)
+        return refreshed
       }
       case 'run-step': {
         const state = await cursor.inspect()
@@ -558,8 +562,10 @@ export async function installCourseWorkflowApi(
           throw new Error('course workflow: the current human message has no attachments')
         }
         await workflow(course).reopenIntake()
-        const imported = await importCourseAttachments(course, message.data.content, ctx.attachments, await runtime(), cwd)
+        const installed = await runtime()
+        const imported = await importCourseAttachments(course, message.data.content, ctx.attachments, installed, cwd)
         if (imported === null) throw new Error('course workflow: attachment import unexpectedly had no sources')
+        await resetCourseConfirmation(installed, course)
         return { result: JSON.stringify(imported) }
       }
       const humanSeq = args.action === 'propose' || args.action === 'confirm'

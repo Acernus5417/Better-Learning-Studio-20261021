@@ -144,6 +144,13 @@ export async function writeCourseConfirmation(runtime: CourseVerifierRuntime, co
   ])) throw new Error('course verifier: could not persist intake confirmation')
 }
 
+/** Keep the legacy progress receipt aligned when new materials reopen intake. */
+export async function resetCourseConfirmation(runtime: CourseVerifierRuntime, course: string): Promise<void> {
+  if (!await accepted(runtime, course, 'convert_materials.py', [
+    'progress', '--goal', 'false', '--materials', 'false', '--baseline', 'false',
+  ])) throw new Error('course verifier: could not reset intake confirmation')
+}
+
 async function verifyMaterials(course: string): Promise<CourseStageEvidence | null> {
   const manifest = await json(join(course, '_工作区', '资料索引.json'))
   const sources = rows(manifest?.sources)
