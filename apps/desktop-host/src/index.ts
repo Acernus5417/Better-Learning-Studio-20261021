@@ -16,19 +16,12 @@ import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
 import { installCourseWorkflowApi } from './course-workflow-api.ts'
+import { desktopWebPort } from './desktop-web-port.ts'
 
 function positiveMilliseconds(name: string, fallback: number): number {
   const raw = process.env[name]
   const value = raw === undefined ? fallback : Number(raw)
   if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`)
-  return value
-}
-
-function desktopWebPort(): number {
-  const value = Number(process.env.BLS_WEB_PORT ?? '19387')
-  if (!Number.isSafeInteger(value) || value < 1 || value > 65_535) {
-    throw new Error('BLS_WEB_PORT must be an integer from 1 through 65535')
-  }
   return value
 }
 
@@ -44,7 +37,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
-    args: ['--no-open', '--port', String(desktopWebPort())],
+    args: ['--no-open', '--port', String(await desktopWebPort(process.env.BLS_WEB_PORT))],
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
         command: process.execPath,

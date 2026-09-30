@@ -254,12 +254,17 @@ export class CourseWorkflow {
   reconcile(): Promise<{ state: CourseWorkflowState; invalidated: CourseStage | null }> {
     return this.locked(async () => {
       const state = await this.requireState()
-      // Each gate checks its upstream dependencies. Rechecking only the most recent
-      // gate avoids treating later link rendering and packaging as an old-stage edit.
+      // Source files and completed transcripts must remain stable even after the
+      // course has advanced. Check those durable inputs first, then the most recent
+      // gate. Later writing stages may intentionally rewrite older Markdown links,
+      // and packaging removes intermediate files, so do not recheck every gate.
       const previous = state.stage === 'complete' ? 'delivery'
         : COURSE_STAGES[COURSE_STAGES.indexOf(state.stage) - 1]
-      const completed = previous === undefined || (state.stage === 'delivery' && state.status === 'running')
-        ? [] : [previous]
+      const packaging = state.stage === 'delivery' && state.status === 'running'
+      const stableInputs = state.stage === 'complete' || packaging ? []
+        : COURSE_STAGES.slice(0, Math.min(COURSE_STAGES.indexOf(state.stage), 2))
+      const completed = packaging ? [] : [...new Set(previous === undefined
+        ? stableInputs : [...stableInputs, previous])]
       for (const stage of completed) {
         let current: CourseStageEvidence | null
         try { current = await this.verify(this.courseRoot, stage, state.model) }

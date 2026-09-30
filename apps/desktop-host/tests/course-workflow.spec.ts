@@ -118,6 +118,27 @@ describe('native course workflow cursor', () => {
     expect((await workflow.inspect())?.validated.transcription).toBeUndefined()
   })
 
+  it.each([
+    { changed: 'materials' as const, retained: {} },
+    { changed: 'transcription' as const, retained: { materials: { signature: 'materials' } } },
+  ])('returns a later course to changed $changed inputs after restart', async ({ changed, retained }) => {
+    const root = await course()
+    const receipts = new Map<CourseStage, CourseStageEvidence>()
+    for (const stage of COURSE_STAGES) receipts.set(stage, { signature: stage, summary: 'checked' })
+    const verify = async (_root: string, stage: CourseStage) => receipts.get(stage) ?? null
+    const workflow = new CourseWorkflow(root, verify)
+    await workflow.initialize()
+    await workflow.confirm('multimodal-model')
+    for (const _stage of COURSE_STAGES.slice(0, 5)) { await workflow.start(); await workflow.completeStage() }
+    expect((await workflow.inspect())?.stage).toBe('cards')
+    receipts.set(changed, { signature: `${changed}-changed`, summary: 'source changed' })
+    expect(await new CourseWorkflow(root, verify).reconcile()).toMatchObject({
+      invalidated: changed, state: { stage: changed, status: 'needs_review', validated: retained },
+    })
+    expect(Object.keys((await workflow.inspect())?.validated ?? {}))
+      .toEqual(changed === 'materials' ? [] : ['materials'])
+  })
+
   it('checks the packaged receipt rather than files deliberately removed by packaging', async () => {
     const root = await course()
     const receipts = new Map<CourseStage, CourseStageEvidence>()
