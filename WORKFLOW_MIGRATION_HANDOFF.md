@@ -175,3 +175,5 @@ HTTP 路由曾暴露不需要真实用户回合的 `confirm`，与模型工具�
 随后将 Host 的所有 course 测试一次运行：41 通过、2 项条件跳过；DSH SDK 假模型子代理生命周期测试 55/55 通过，均无需用户 API。应用窗口已经用标准 Windows 会话重新打开供用户手动在系统选择器中附加 `.desktop-cache/native-e2e-fixture/附件` 三份合成文件；已通过异步提问说明审批拒绝原因及操作步骤，等待用户回复。**不要在用户操作时操控该窗口，不要通过其他接口绕过已拒绝的文件选择器读取。** 当前进程在 HTTP confirm 移除／旧进度清零提交前启动；这两项影响新增资料后的恢复而不影响首次课程创建，但后续正式交付应重启加载最新 Host。
 
 真实窗口截图还显示右栏默认收起，与用户要求的“右侧课程文件预览默认显示”不符。源码原本已有自动打开 `files` 的订阅，但判断 `process.env.DSH_CLIENT_BUILD_PROFILE`，浏览器运行时未注入该值；现改用同底部文件夹入口的 preload `__BLS_STUDIO__` 标记。测试两个不同 Session 各打开一次，同 Session 不重复；UI TypeScript、lint、12 项测试通过。当前窗口仍是旧 Web bundle，等用户完成选择器操作后再重建 Better Learning Web 并重启验证，不中断其正在操作的窗口。
+
+更正上句构建状态：Better Learning 配置下的 `apps/web/node_modules/.bin/vite.CMD build` 已在标准文件权限中成功，受限沙箱直接运行时 esbuild 无法读取 Vite 配置。**构建已完成，实机重启和右栏观察仍未完成。** 不应在用户选择资料途中重启当前窗口。

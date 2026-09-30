@@ -43,3 +43,4 @@
 - 补交资料重开 intake 时同步把旧 `_工作区/生成进度.json` 的 goal/materials/baseline 确认位清为 false，避免原生游标与旧校验脚本读取的状态分叉。用真实随包 Python 在一份已盘点的合成 PDF 课程上执行确认→重开烟测，三位从 true 全部回到 false；Host TypeScript、lint、9 项聚焦测试通过，未调用模型 API。
 - 课程 Host 全部聚焦文件复跑为 41 通过、2 项环境跳过；DSH SDK 的假模型子代理生命周期测试 55/55 通过，均未调用用户 API。真实多模态视觉探针、混合资料成员以及 packaged 仍待用户完成合成文件夹的系统选择器步骤后验收。当前开发版窗口保持运行；用户尚未发送测试课程请求。
 - 右侧课程文件预览未默认展开的原因已定位并修复：`ui-sidebar-files` 仍用浏览器运行时不可依赖的 `process.env.DSH_CLIENT_BUILD_PROFILE` 判断 Better Learning，现改为桌面 preload 的 `__BLS_STUDIO__` 标记，与底部文件夹入口一致。测试对两个 Session 各自动打开一次、同 Session 不重复打开；UI TypeScript、lint、12 项聚焦测试通过。尚需在用户完成当前选择器操作后重建 Web 并重启实机确认。
+- Better Learning 配置下的 Vite Web 构建已在标准文件权限中通过（受限沙箱内 esbuild 无法读取其配置路径）；当前运行窗口尚未重启，因此右栏自动展开仍需实机复验。构建没有调用模型 API。
