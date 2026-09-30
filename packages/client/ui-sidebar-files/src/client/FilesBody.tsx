@@ -212,7 +212,7 @@ export function FilesBody({
           </button>
         </Tooltip>
       </div>
-      {process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning' && (
+      {(globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true && (
         <CourseProgress sessionId={sessionId} root={state.root} readCourseProgress={readCourseProgress} t={t} />
       )}
       <div

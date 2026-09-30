@@ -9,7 +9,7 @@ import { apply as hostApply } from '../src/index.ts'
 
 afterEach(() => {
   cleanup()
-  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
 })
 
 const HOLES = [
@@ -38,15 +38,14 @@ describe('official browser-brand plugin', () => {
     expect(inject).toEqual(['slots'])
   })
 
-  it('leaves every slot empty outside the official build profile', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'local')
+  it('leaves every slot empty outside Studio desktop', async () => {
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
     for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
   })
 
   it('fills declarations before or after apply and removes every occupant on teardown', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'better-learning')
+    vi.stubGlobal('__BLS_STUDIO__', true)
     const before = await bench()
     const fiber = before.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -70,7 +69,7 @@ describe('official browser-brand plugin', () => {
   })
 
   it('uses the studio mark in the conversation hero', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'better-learning')
+    vi.stubGlobal('__BLS_STUDIO__', true)
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
     expect(subject.slots.entries('conversation.hero.brand.mark')).toHaveLength(1)

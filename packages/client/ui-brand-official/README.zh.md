@@ -1,5 +1,5 @@
 ---
-description: "面向侧栏的官方 DeepSeek Harness 品牌填充，仅在官方构建中生效；供选择或替换品牌呈现的用户与维护者阅读。"
+description: "Better Learning Studio 桌面端侧栏与会话首屏的品牌标记。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包让以 `official` profile 构建的客户端在侧栏显示 DeepSeek Harness 标志与名称。其他构建 profile 保留外壳的鱼形标志与本地构建标签，会话首屏则始终使用动画鱼。品牌为 DeepSeek Harness 的部署应选择本包；使用其他品牌的部署应提供替代品牌包。本包不保留运行时状态，也不影响模型请求。
+桌面 preload 暴露 `__BLS_STUDIO__` 时，本包在侧栏和会话首屏显示 Better Learning Studio 标记。侧栏外壳提供 Studio 名称回退，其他客户端继续使用各 slot 的默认内容。本包不保留运行时状态，也不影响模型请求。
 
 ## 目录
 
@@ -25,11 +25,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在采用 DeepSeek 自有品牌的部署中，将本插件挂载到浏览器插件名单，然后以 `official` profile 构建客户端，让填充得以注册。
+在 Better Learning Studio 桌面端的浏览器插件名单中挂载本插件，由 preload 标记在运行时启用填充。
 
-### 选择 profile
+### 桌面端启用
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建在侧栏显示官方标志与名称；任何其他取值都让外壳回退——鱼形标志与本地构建标签——保持原样。会话首屏无论 profile 如何都显示来自 `dsh-client-ui-conversation` 的动画首屏鱼，因为这个回退本身就是官方标志。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
+`__BLS_STUDIO__` 选择侧栏和会话首屏的 Studio 标记。其他客户端仍加载插件，但不注册这些填充。修改标记逻辑后须重建本包的 client bundle；只构建 Web 外壳不会重建插件 bundle。
 
 ### 替换品牌
 

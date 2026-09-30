@@ -13,6 +13,8 @@ Server-expired account credentials clear the displayed account details and emit 
 
 The Account settings section displays DeepSeek login state and offers browser sign-in and cancellation; the sidebar account menu provides Platform sign-out. Desktop users also receive a resumable introduction to account credit and presentation preferences.
 
+In Better Learning Studio, the desktop preload marker `__BLS_STUDIO__` registers only an unavailable Account placeholder in Settings. Account login and Platform account controls are inactive there.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

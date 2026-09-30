@@ -42,7 +42,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.account', 'remote.se
 /** Register account UI only in the Desktop renderer. @param ctx - client plugin context. */
 export function apply(ctx: Context): void {
   if (!('dshDesktop' in globalThis)) return
-  if (process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning') {
+  if ((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true) {
     ctx.effect(() => ctx.locale.register('settings.account', { en, zh }), 'account placeholder: dictionaries')
     const t = ctx.locale.bind('settings.account')
     ctx.slots.inject('settings.section', () => ctx.slots.register({

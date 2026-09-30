@@ -13,6 +13,8 @@ kind: "package-reference"
 
 设置中的账号页面显示 DeepSeek 登录状态，并提供浏览器登录和取消；侧边栏账号菜单提供 Platform 退出登录。Desktop 用户还会进入可恢复的引导，了解账号额度并选择展示偏好。
 
+在 Better Learning Studio 中，桌面 preload 标记 `__BLS_STUDIO__` 只在设置里注册不可用的“账号”占位页；账号登录和 Platform 账号控件均不启用。
+
 ## 目录
 
 - [使用此包](#use-this-package)

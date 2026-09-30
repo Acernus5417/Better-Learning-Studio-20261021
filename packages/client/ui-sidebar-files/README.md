@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 Browse a Session's workspace tree and open files in Sidebar previews. The root and expanded directories refresh automatically from direct-entry watches; manual reload remains available. The tab is reached from the guide and claims no resource address.
 
-In Better Learning Studio, the compact course strip reads `_工作区/内置工作流.json` when present, displays its recovery state and Host watchdog exception count, and retains `_工作区/生成进度.json` for chapter and lesson counts. Existing courses without a native cursor keep their legacy progress behavior. A complete label still requires a passing packaged receipt.
+In Better Learning Studio, the desktop preload marker `__BLS_STUDIO__` opens this tab for each mounted Session and enables the compact course strip. The strip reads `_工作区/内置工作流.json` when present, displays its recovery state and Host watchdog exception count, and retains `_工作区/生成进度.json` for chapter and lesson counts. Existing courses without a native cursor keep their legacy progress behavior. A complete label still requires a passing packaged receipt. Rebuild this package's client bundle after changing the desktop presentation; the Web shell build alone does not rebuild plugin bundles.
 
 ## Table of Contents
 

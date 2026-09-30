@@ -226,7 +226,7 @@ export function SidebarRoot({
               </span>
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
-                  fallback: process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning'
+                  fallback: (globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true
                     ? <span className={css.studioBrandName}>{t('brand.studio')}</span>
                     : buildVersion === undefined
                       ? <span className={css.fallbackBrandName}>{t('brand.localBuild')}</span>

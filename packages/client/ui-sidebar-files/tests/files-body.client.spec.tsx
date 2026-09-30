@@ -20,7 +20,7 @@ const ROOT_LEVEL: DirLevel = {
   truncated: false,
 }
 
-afterEach(() => { cleanup() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 /** Row labels in document order. */
 function names(root: HTMLElement): string[] {
@@ -28,6 +28,15 @@ function names(root: HTMLElement): string[] {
 }
 
 describe('FilesBody', () => {
+  it('shows the compact course checkpoint in Studio desktop', async () => {
+    vi.stubGlobal('__BLS_STUDIO__', true)
+    const { view, script } = mountBody()
+    await act(() => script.watches.ready(ROOT))
+    await act(() => script.settle({ ok: true, value: ROOT_LEVEL }))
+    expect(view.container.querySelector('[data-course-progress="waiting"]')?.textContent)
+      .toBe(zh['courseProgress.waiting'])
+  })
+
   it('displays the effective file-tree refresh accelerator', async () => {
     const { view, script } = mountBody(ROOT, { id: 'page.refresh' as never, label: 'Refresh', aliases: [],
       binding: null, keys: ['Ctrl', 'R'], aria: 'Control+R', modified: true, conflicts: [], issue: null })

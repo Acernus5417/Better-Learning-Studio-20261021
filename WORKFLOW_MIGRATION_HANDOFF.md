@@ -177,3 +177,5 @@ HTTP 路由曾暴露不需要真实用户回合的 `confirm`，与模型工具�
 真实窗口截图还显示右栏默认收起，与用户要求的“右侧课程文件预览默认显示”不符。源码原本已有自动打开 `files` 的订阅，但判断 `process.env.DSH_CLIENT_BUILD_PROFILE`，浏览器运行时未注入该值；现改用同底部文件夹入口的 preload `__BLS_STUDIO__` 标记。测试两个不同 Session 各打开一次，同 Session 不重复；UI TypeScript、lint、12 项测试通过。当前窗口仍是旧 Web bundle，等用户完成选择器操作后再重建 Better Learning Web 并重启验证，不中断其正在操作的窗口。
 
 更正上句构建状态：Better Learning 配置下的 `apps/web/node_modules/.bin/vite.CMD build` 已在标准文件权限中成功，受限沙箱直接运行时 esbuild 无法读取 Vite 配置。**构建已完成，实机重启和右栏观察仍未完成。** 不应在用户选择资料途中重启当前窗口。
+
+2026-09-30 隔离窗口补验：Web 外壳构建不会重建 Host 动态提供的插件 bundle；此前 `ui-sidebar-files/lib/client.js` 仍含打包成恒假的 `DSH_CLIENT_BUILD_PROFILE` 判断。文件插件重新 bundle 后，隔离 Electron 刷新时自动打开“文件”页，课程状态条显示“等待课程资料”。文件、侧栏、品牌、账号四处桌面判断已统一为 preload 的 `__BLS_STUDIO__`，四包已重建；39 项聚焦 UI 测试、类型检查和 lint 通过。`pnpm run test:gui` 在受限环境里意外触发全工作区 registry 请求，已中止；直接运行 Vitest 的全量 GUI 测试在本机出现 `uv_os_get_passwd` ENOMEM 及其他环境失败，未通过。隔离进程已结束；原用户窗口未重启或操作，仍待用户手动完成合成资料夹附件。**下一步仍须迁移版真实视觉探针／成员、看门狗与强制结束恢复、最终 packaged；请控制 API 用量，不读取整套旧产物。**

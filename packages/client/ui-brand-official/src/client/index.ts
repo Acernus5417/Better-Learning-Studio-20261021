@@ -14,7 +14,7 @@ export const inject = ['slots']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  if (process.env.DSH_CLIENT_BUILD_PROFILE !== 'better-learning') return
+  if ((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ !== true) return
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.register({ name: 'sidebar.brand.mark' }, OfficialBrandMark))
   ctx.slots.inject('conversation.hero.brand.mark', () =>
