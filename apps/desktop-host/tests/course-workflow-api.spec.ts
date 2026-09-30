@@ -106,6 +106,10 @@ describe('course API directory selection', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ stage: 'materials', status: 'running' })
     expect((await workflow.inspect())?.status).toBe('running')
+    const bypass = await handler!(new Request('http://localhost/api/better-learning/workflow', {
+      method: 'POST', body: JSON.stringify({ workspaceId: 'workspace-1', course: '.', action: 'confirm', model: 'other' }),
+    }))
+    expect(bypass.status).toBe(400)
     expect(courseTool?.name).toBe('course_workflow')
     const result = await courseTool!.execute({ action: 'inspect' }, { agent } as never)
     expect(JSON.parse((result as { result: string }).result)).toMatchObject({ status: 'running' })

@@ -470,9 +470,9 @@ export async function installCourseWorkflowApi(
         if (!record(input) || typeof input.workspaceId !== 'string' || typeof input.course !== 'string'
           || typeof input.action !== 'string') return new Response('invalid request', { status: 400 })
         const course = await resolveRegisteredCourse(ctx.workspaceRegistry.list(), input.workspaceId, input.course)
-        if (!['inspect', 'initialize', 'confirm', 'change-model', 'start', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog']
+        if (!['inspect', 'initialize', 'change-model', 'start', 'complete-stage', 'pause', 'reconcile', 'resume', 'watchdog']
           .includes(input.action)) return new Response('unknown action', { status: 400 })
-        if ((input.action === 'confirm' || input.action === 'change-model') && typeof input.model !== 'string') {
+        if (input.action === 'change-model' && typeof input.model !== 'string') {
           return new Response('model is required', { status: 400 })
         }
         if (input.action === 'pause' && (typeof input.reason !== 'string' || input.reason.trim() === '')) {

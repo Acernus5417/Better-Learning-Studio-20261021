@@ -39,3 +39,4 @@
 - 同日修复资料确认前的恢复断点：`create-course` 导入中断后原生游标处于 `waiting_confirmation`，旧 `refresh-inventory` 却拒绝此状态；现在资料阶段各状态都可从持久来源清单重跑盘点。用户在资料阶段补交附件时会先重开 intake，清除旧摘要、已确认标志与模型，须重新归纳并由下一真实用户回合确认；避免新资料沿用旧范围确认。Host TypeScript、聚焦 lint 与 22 项相关测试通过；尚未做迁移版模型验收。
 - 新课程目录已创建但初始化前的运行时／计划校验失败时，`create-course` 现在返回课程名、错误与 `initialize` 恢复入口，避免同名重试只得到“目录已存在”而丢失恢复路径；API 聚焦测试在故意缺运行时的情况下验证目录保留、游标未伪造。Host TypeScript、lint 与该文件 7 项测试通过，未调用 API。
 - 重启校验器暂时抛错时，原生游标现在保存 `needs_review` 与短原因，保留此前通过的阶段凭证；若已完成课程的 packaged 复验无法运行，则退到 delivery 待确认，不继续显示虚假的 complete。两种恢复路径均有持久状态测试；Host TypeScript、lint 和工作流 12 项测试通过。
+- 关闭未接线的 HTTP `confirm` 入口：之前模型工具有“已提议摘要＋更晚真实用户回合”门槛，但认证 HTTP 路由能直接调用 confirm。现在确认仅由模型工具完成，未来独立界面确认控件需绑定真实用户动作后再开放。中英 Host 文档与 API 测试同步；TypeScript、lint、7 项测试通过。

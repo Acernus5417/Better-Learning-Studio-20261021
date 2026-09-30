@@ -167,3 +167,5 @@ Host 的 `CourseWatchdogService` 以前只主动通知静默尝试；现在已�
 另补齐 `create-course` 的更早失败边界：目录创建后如果运行时安装或 plan 检查失败，工具现在返回课程名、`initializationError` 与 `initialize` 重试提示；测试用缺运行时验证目录可找到且未伪造游标。原调用的同名 `create-course` 不应重试，因为目录已存在。Host TypeScript、lint、API 测试 7/7 通过。真实模型验收仍未进行。
 
 重启 `reconcile` 的 verifier 若因 Python／脚本／环境暂不可用而抛错，现在会把游标持久设为 `needs_review`，附短原因并保留此前有效凭证，避免界面保留旧的 `running`。完成课程的 packaged 复验若抛错，游标退到 delivery 待确认并移除 delivery 凭证，后续可重新核验 packaged，之前的 cards 等凭证保留。Host TypeScript、lint、工作流 12/12 测试通过。这里处理的是校验器异常；真正返回 `null` 的失效凭证仍按原路径回退最早失效阶段。
+
+HTTP 路由曾暴露不需要真实用户回合的 `confirm`，与模型工具的聊天确认门槛不一致；当前没有独立的 UI 确认控件使用它，已从 HTTP 动作白名单移除。模型工具仍要求已保存 proposal 且后续真实人类消息。中英 Host 文档同步，API 测试确认 HTTP `confirm` 返回 400。若未来增加点击确认控件，应单独绑定用户动作再开放对应宿主入口。
