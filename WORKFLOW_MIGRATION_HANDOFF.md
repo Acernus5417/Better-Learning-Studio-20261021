@@ -161,3 +161,5 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 最新 Host 已构建，并在标准 Windows 会话里用 `start-studio.ps1 -SkipBuild` 启动；受限沙箱内会出现 Electron GPU 子进程失败和配置锁 EPERM，标准会话没有重现。实际窗口保留 Better Learning Studio 标识、better-learning 预设和用户已选的官方 `DeepSeek-V41-Flash`。加号有文件与文件夹；选择合成 `lesson.pdf` 后出现发送前附件卡片，含移除按钮，移除后卡片消失。随后文件夹选择器的完整辅助功能树读取被自动审批拒绝，理由是可能读取当前目录中无关的私人文件名和路径；已停止该 UI 路径并关闭测试进程。**没有发送消息或使用模型 API**。继续该 UI 验收需要以明确授权且只显示合成夹具的选择器环境进行，勿绕过此次拒绝。
 
 Host 的 `CourseWatchdogService` 以前只主动通知静默尝试；现在已停止或未知的尝试若在宿主拥有的批次结束后仍未收口，也会向仍存活的根代理发一次异常提醒。批次正常收尾期间抑制该提醒，避免 `subagent/end` 与 `collect` 之间误报。状态仍持久化在 `_工作区/内置看门狗.json`；恢复仍要求显式暂停／`resume`，不能把此变化称为自动重派。Host TypeScript、相关 13 项 Vitest 通过。下一项优先验证真实迁移版模型探针与成员生命周期，强制中断恢复，再以 packaged 收据验收整门小课程；记录实际 token 用量。
+
+确认前恢复缺口也已修复：`create-course` 失败时游标仍为 `waiting_confirmation`，现在 `refresh-inventory` 不再要求 ready/running，能从持久附件台账重试。资料阶段有新的人类附件或文件夹时，`import-attachments` 在导入前调用 `reopenIntake`，清除之前的摘要、确认和模型；若导入途中再失败，课程仍安全地等待新范围确认。模型必须重新 `propose`，并在更晚的直接用户回合 `confirm`。Host TypeScript、lint、22 项相关测试通过，无 API 调用。当前真实桌面端混合资料发送的文件选择器环节仍受上面的自动审批限制；不要声称完成端到端验收。

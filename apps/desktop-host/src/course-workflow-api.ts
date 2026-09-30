@@ -20,7 +20,7 @@ import { CourseTranscriptionBatchService } from './course-transcription-batch.ts
 import { CourseVisionProbeService } from './course-vision-probe.ts'
 import { recoverStoppedCourseAttempts } from './course-transcription-recovery.ts'
 import { CourseWatchdogService, type CourseWatchdogPolicy } from './course-watchdog-service.ts'
-import { importCourseAttachments, refreshCourseInventory } from './course-attachments.ts'
+import { humanFolderMentions, importCourseAttachments, refreshCourseInventory } from './course-attachments.ts'
 import { prepareOfficeRenders } from './course-office-renders.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
@@ -303,7 +303,7 @@ export async function installCourseWorkflowApi(
       }
       case 'refresh-inventory': {
         const state = await cursor.inspect()
-        if (state?.stage !== 'materials' || !['ready', 'running'].includes(state.status)) {
+        if (state?.stage !== 'materials') {
           throw new Error('course workflow: inventory can be refreshed only during the materials stage')
         }
         return refreshCourseInventory(course, await runtime(), ctx.attachments)
@@ -539,15 +539,20 @@ export async function installCourseWorkflowApi(
       const course = await resolveAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course ?? '.')
       if (args.action === 'import-attachments') {
         const state = await workflow(course).inspect()
-        if (state?.stage !== 'materials' || !['ready', 'running'].includes(state.status)) {
+        if (state?.stage !== 'materials') {
           throw new Error('course workflow: attachments can be imported only during the materials stage')
         }
         const humanSeq = requireHumanCourseConfirmation(ctx, agent)
         // oxlint-disable-next-line typescript/no-deprecated -- Current Session log authority read.
         const message = agent.session.snapshotEvents()[humanSeq]
         if (message?.type !== 'user/message') throw new Error('course workflow: direct human message is missing')
+        if (!message.data.content.some(part => part.type === 'file' || part.type === 'image')
+          && humanFolderMentions(message.data.content, cwd).length === 0) {
+          throw new Error('course workflow: the current human message has no attachments')
+        }
+        await workflow(course).reopenIntake()
         const imported = await importCourseAttachments(course, message.data.content, ctx.attachments, await runtime(), cwd)
-        if (imported === null) throw new Error('course workflow: the current human message has no attachments')
+        if (imported === null) throw new Error('course workflow: attachment import unexpectedly had no sources')
         return { result: JSON.stringify(imported) }
       }
       const humanSeq = args.action === 'propose' || args.action === 'confirm'

@@ -26,6 +26,23 @@ describe('native course workflow cursor', () => {
     expect((await restarted.inspect())?.intakeProposal?.humanSeq).toBe(2)
   })
 
+  it('reopens intake when materials change after confirmation or a saved proposal', async () => {
+    const root = await course()
+    const workflow = new CourseWorkflow(root, async () => null)
+    await workflow.initialize()
+    await workflow.propose('三份资料', 2)
+    expect((await workflow.reopenIntake()).intakeProposal).toBeUndefined()
+    await workflow.propose('四份资料', 3)
+    await workflow.confirm('multimodal-model')
+    await workflow.start()
+    const reopened = await workflow.reopenIntake()
+    expect(reopened).toMatchObject({ stage: 'materials', status: 'waiting_confirmation', model: null,
+      confirmations: { goal: false, materials: false, baseline: false } })
+    expect(reopened.intakeProposal).toBeUndefined()
+    await expect(workflow.start()).rejects.toThrow('not ready')
+    expect((await new CourseWorkflow(root, async () => null).inspect())?.status).toBe('waiting_confirmation')
+  })
+
   it('admits stages only after a real verifier result and completes at delivery', async () => {
     const root = await course()
     const receipts = new Map<CourseStage, CourseStageEvidence>()

@@ -188,6 +188,19 @@ export class CourseWorkflow {
     })
   }
 
+  /** New human-admitted sources require a fresh intake summary and confirmation. */
+  reopenIntake(): Promise<CourseWorkflowState> {
+    return this.locked(async () => {
+      const state = await this.requireState()
+      if (state.stage !== 'materials') throw new Error('course workflow: intake can reopen only during materials')
+      const { intakeProposal: _proposal, ...withoutProposal } = state
+      return this.write({ ...withoutProposal, status: 'waiting_confirmation', model: null,
+        confirmations: { goal: false, materials: false, baseline: false },
+        nextAction: '资料范围已更新，请重新归纳学习目标、资料范围和基础并等待确认',
+        updatedAt: this.now().toISOString() })
+    })
+  }
+
   /** Record one intake confirmation after updating the legacy progress receipt. */
   confirm(model: string, updateProgress: () => Promise<void> = () => Promise.resolve()): Promise<CourseWorkflowState> {
     return this.locked(async () => {
