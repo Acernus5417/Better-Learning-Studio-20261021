@@ -66,7 +66,7 @@ export function apply(ctx: ClientContext): void {
   })
   ctx.effect(() => ctx.sidebarRightTabs.register(filesDefinition(t)), 'ui-sidebar-files: files type')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-files: dictionaries')
-  if (process.env.DSH_CLIENT_BUILD_PROFILE === 'better-learning') {
+  if ((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true) {
     ctx.effect(() => {
       const initialized = new Set<string>()
       const sync = (): void => {

@@ -171,3 +171,7 @@ Host 的 `CourseWatchdogService` 以前只主动通知静默尝试；现在已�
 HTTP 路由曾暴露不需要真实用户回合的 `confirm`，与模型工具的聊天确认门槛不一致；当前没有独立的 UI 确认控件使用它，已从 HTTP 动作白名单移除。模型工具仍要求已保存 proposal 且后续真实人类消息。中英 Host 文档同步，API 测试确认 HTTP `confirm` 返回 400。若未来增加点击确认控件，应单独绑定用户动作再开放对应宿主入口。
 
 重开 intake 还会经随包 `convert_materials.py progress --goal false --materials false --baseline false` 同步旧 `生成进度.json`，防止原生状态等待确认而旧脚本仍见 true。`.desktop-cache/native-reset-smoke.mjs` 使用真实随包 Python，先对合成 PDF 做 inventory，确认后再 reset，三位从 true 变成 false。该 progress 命令需要已有 `资料索引.json`；完全空课程会报 `PREREQUISITE_MISSING`。因此 `import-attachments` 先完成 inventory 再清确认位；导入中断后由 `refresh-inventory` 完成盘点并在 waiting_confirmation 状态清零。Host TypeScript、lint、相关 9 项测试通过，无 API 调用。
+
+随后将 Host 的所有 course 测试一次运行：41 通过、2 项条件跳过；DSH SDK 假模型子代理生命周期测试 55/55 通过，均无需用户 API。应用窗口已经用标准 Windows 会话重新打开供用户手动在系统选择器中附加 `.desktop-cache/native-e2e-fixture/附件` 三份合成文件；已通过异步提问说明审批拒绝原因及操作步骤，等待用户回复。**不要在用户操作时操控该窗口，不要通过其他接口绕过已拒绝的文件选择器读取。** 当前进程在 HTTP confirm 移除／旧进度清零提交前启动；这两项影响新增资料后的恢复而不影响首次课程创建，但后续正式交付应重启加载最新 Host。
+
+真实窗口截图还显示右栏默认收起，与用户要求的“右侧课程文件预览默认显示”不符。源码原本已有自动打开 `files` 的订阅，但判断 `process.env.DSH_CLIENT_BUILD_PROFILE`，浏览器运行时未注入该值；现改用同底部文件夹入口的 preload `__BLS_STUDIO__` 标记。测试两个不同 Session 各打开一次，同 Session 不重复；UI TypeScript、lint、12 项测试通过。当前窗口仍是旧 Web bundle，等用户完成选择器操作后再重建 Better Learning Web 并重启验证，不中断其正在操作的窗口。

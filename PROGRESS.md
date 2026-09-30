@@ -41,3 +41,5 @@
 - 重启校验器暂时抛错时，原生游标现在保存 `needs_review` 与短原因，保留此前通过的阶段凭证；若已完成课程的 packaged 复验无法运行，则退到 delivery 待确认，不继续显示虚假的 complete。两种恢复路径均有持久状态测试；Host TypeScript、lint 和工作流 12 项测试通过。
 - 关闭未接线的 HTTP `confirm` 入口：之前模型工具有“已提议摘要＋更晚真实用户回合”门槛，但认证 HTTP 路由能直接调用 confirm。现在确认仅由模型工具完成，未来独立界面确认控件需绑定真实用户动作后再开放。中英 Host 文档与 API 测试同步；TypeScript、lint、7 项测试通过。
 - 补交资料重开 intake 时同步把旧 `_工作区/生成进度.json` 的 goal/materials/baseline 确认位清为 false，避免原生游标与旧校验脚本读取的状态分叉。用真实随包 Python 在一份已盘点的合成 PDF 课程上执行确认→重开烟测，三位从 true 全部回到 false；Host TypeScript、lint、9 项聚焦测试通过，未调用模型 API。
+- 课程 Host 全部聚焦文件复跑为 41 通过、2 项环境跳过；DSH SDK 的假模型子代理生命周期测试 55/55 通过，均未调用用户 API。真实多模态视觉探针、混合资料成员以及 packaged 仍待用户完成合成文件夹的系统选择器步骤后验收。当前开发版窗口保持运行；用户尚未发送测试课程请求。
+- 右侧课程文件预览未默认展开的原因已定位并修复：`ui-sidebar-files` 仍用浏览器运行时不可依赖的 `process.env.DSH_CLIENT_BUILD_PROFILE` 判断 Better Learning，现改为桌面 preload 的 `__BLS_STUDIO__` 标记，与底部文件夹入口一致。测试对两个 Session 各自动打开一次、同 Session 不重复打开；UI TypeScript、lint、12 项聚焦测试通过。尚需在用户完成当前选择器操作后重建 Web 并重启实机确认。

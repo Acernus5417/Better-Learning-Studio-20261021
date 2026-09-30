@@ -7,7 +7,7 @@
  * and face — and that every registration is gone after dispose, which is what
  * makes a reload safe.
  */
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { ShortcutCommand } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { SidebarRightTabRegistry } from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
@@ -26,6 +26,8 @@ interface Recorded {
   inject: unknown
   component: unknown
 }
+
+afterEach(() => { delete (globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ })
 
 async function boot() {
   const ctx = new Context()
@@ -49,7 +51,17 @@ async function boot() {
     }),
   }
   const workspaceFiles = { list: vi.fn() }
-  const sidebar = { commandTarget: vi.fn(), openTabFromTarget: vi.fn() }
+  let mountedSession: string | undefined
+  const listeners = new Set<() => void>()
+  const sidebar = {
+    commandTarget: vi.fn(), openTabFromTarget: vi.fn(), openTab: vi.fn(),
+    isExpanded: vi.fn(() => false), toggleExpanded: vi.fn(),
+    mounted: { getSnapshot: () => mountedSession, subscribe: (listener: () => void) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    } },
+  }
+  const mount = (session: string): void => { mountedSession = session; for (const listener of listeners) listener() }
   const commands: ShortcutCommand[] = []
   ctx.provide('shortcuts', { register: (command: ShortcutCommand) => {
     commands.push(command)
@@ -63,10 +75,22 @@ async function boot() {
   ctx.provide('remote.workspaceFiles', workspaceFiles as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { tabs, registered, dictionaries, fiber, sidebar, commands }
+  return { tabs, registered, dictionaries, fiber, sidebar, commands, mount }
 }
 
 describe('ui-sidebar-files apply', () => {
+  it('opens the file preview by default for each Studio Session', async () => {
+    ;(globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ = true
+    const h = await boot()
+    try {
+      h.mount('course-1')
+      h.mount('course-1')
+      h.mount('course-2')
+      expect(h.sidebar.openTab).toHaveBeenCalledTimes(2)
+      expect(h.sidebar.openTab).toHaveBeenNthCalledWith(1, 'files')
+      expect(h.sidebar.toggleExpanded).toHaveBeenCalledTimes(2)
+    } finally { await h.fiber.dispose() }
+  })
   it('opens files for the command target and refuses without a selected Session', async () => {
     const h = await boot()
     try {
