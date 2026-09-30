@@ -520,7 +520,14 @@ export async function installCourseWorkflowApi(
         const humanSeq = requireHumanCourseConfirmation(ctx, agent)
         if (args.course === undefined) throw new Error('course workflow: new course name is required')
         const created = await createAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course)
-        const initialization = await perform(created, 'initialize')
+        let initialization: unknown
+        try { initialization = await perform(created, 'initialize') }
+        catch (error) {
+          return { result: JSON.stringify({ course: args.course,
+            initializationError: error instanceof Error ? error.message : String(error),
+            recovery: 'The course directory exists. Retry initialize on this course, then import-attachments from the direct human turn or ask the learner to attach sources again.',
+          }) }
+        }
         // oxlint-disable-next-line typescript/no-deprecated -- Current Session log authority read.
         const message = agent.session.snapshotEvents()[humanSeq]
         try {

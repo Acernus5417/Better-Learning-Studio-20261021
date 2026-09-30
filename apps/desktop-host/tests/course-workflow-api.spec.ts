@@ -137,6 +137,13 @@ describe('course API directory selection', () => {
     expect(legacy.status).toBe(409)
     const rejected: unknown = await legacy.json()
     expect(JSON.stringify(rejected)).toContain('legacy course')
+    const created = await courseTool!.execute({ action: 'create-course', course: 'RuntimeUnavailable' }, { agent } as never)
+    const createdPayload: unknown = JSON.parse((created as { result: string }).result)
+    expect(createdPayload).toMatchObject({ course: 'RuntimeUnavailable' })
+    expect(JSON.stringify(createdPayload)).toContain('Retry initialize')
+    await expect(resolveRegisteredCourse(workspaceRegistry.list(), 'workspace-1', 'RuntimeUnavailable'))
+      .resolves.toBe(join(root, 'RuntimeUnavailable'))
+    expect(await new CourseWorkflow(join(root, 'RuntimeUnavailable'), async () => null).inspect()).toBeNull()
   })
 
   it('requires a direct human message in the current root turn for intake confirmation', () => {

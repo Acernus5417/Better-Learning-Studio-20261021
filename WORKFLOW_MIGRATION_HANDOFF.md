@@ -163,3 +163,5 @@ Host 聚焦 9 文件 33 通过、2 跳过；TypeScript、oxlint、Host tsdown �
 Host 的 `CourseWatchdogService` 以前只主动通知静默尝试；现在已停止或未知的尝试若在宿主拥有的批次结束后仍未收口，也会向仍存活的根代理发一次异常提醒。批次正常收尾期间抑制该提醒，避免 `subagent/end` 与 `collect` 之间误报。状态仍持久化在 `_工作区/内置看门狗.json`；恢复仍要求显式暂停／`resume`，不能把此变化称为自动重派。Host TypeScript、相关 13 项 Vitest 通过。下一项优先验证真实迁移版模型探针与成员生命周期，强制中断恢复，再以 packaged 收据验收整门小课程；记录实际 token 用量。
 
 确认前恢复缺口也已修复：`create-course` 失败时游标仍为 `waiting_confirmation`，现在 `refresh-inventory` 不再要求 ready/running，能从持久附件台账重试。资料阶段有新的人类附件或文件夹时，`import-attachments` 在导入前调用 `reopenIntake`，清除之前的摘要、确认和模型；若导入途中再失败，课程仍安全地等待新范围确认。模型必须重新 `propose`，并在更晚的直接用户回合 `confirm`。Host TypeScript、lint、22 项相关测试通过，无 API 调用。当前真实桌面端混合资料发送的文件选择器环节仍受上面的自动审批限制；不要声称完成端到端验收。
+
+另补齐 `create-course` 的更早失败边界：目录创建后如果运行时安装或 plan 检查失败，工具现在返回课程名、`initializationError` 与 `initialize` 重试提示；测试用缺运行时验证目录可找到且未伪造游标。原调用的同名 `create-course` 不应重试，因为目录已存在。Host TypeScript、lint、API 测试 7/7 通过。真实模型验收仍未进行。
