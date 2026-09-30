@@ -82,6 +82,22 @@ describe('native course workflow cursor', () => {
     expect((await restarted.resume()).status).toBe('ready')
   })
 
+  it('persists needs_review when restart validation is temporarily unavailable', async () => {
+    const root = await course()
+    const first = new CourseWorkflow(root, async () => ({ signature: 'materials', summary: 'checked' }))
+    await first.initialize()
+    await first.confirm('multimodal-model')
+    await first.start()
+    await first.completeStage()
+    const restarted = new CourseWorkflow(root, async () => { throw new Error('runtime unavailable') })
+    const result = await restarted.reconcile()
+    expect(result).toMatchObject({ invalidated: null, state: {
+      stage: 'transcription', status: 'needs_review', validated: { materials: { signature: 'materials' } },
+    } })
+    expect(result.state.nextAction).toContain('runtime unavailable')
+    expect((await new CourseWorkflow(root, async () => null).inspect())?.status).toBe('needs_review')
+  })
+
   it('returns to the earliest changed gate and preserves earlier evidence', async () => {
     const root = await course()
     const receipts = new Map<CourseStage, CourseStageEvidence>([
@@ -114,6 +130,18 @@ describe('native course workflow cursor', () => {
     receipts.set('delivery', { signature: 'delivery', summary: 'packaged receipt passed' })
     expect((await new CourseWorkflow(root, async (_root, stage) => receipts.get(stage) ?? null).reconcile()).state.status)
       .toBe('complete')
+  })
+
+  it('reopens delivery if a completed course cannot revalidate its packaged receipt on restart', async () => {
+    const root = await course()
+    const workflow = new CourseWorkflow(root, async (_root, stage) => ({ signature: stage, summary: 'checked' }))
+    await workflow.initialize()
+    await workflow.confirm('multimodal-model')
+    for (const _stage of COURSE_STAGES) { await workflow.start(); await workflow.completeStage() }
+    const result = await new CourseWorkflow(root, async () => { throw new Error('Python unavailable') }).reconcile()
+    expect(result.state).toMatchObject({ stage: 'delivery', status: 'needs_review' })
+    expect(result.state.validated.delivery).toBeUndefined()
+    expect(result.state.validated.cards?.signature).toBe('cards')
   })
 
   it('holds a changed model at the vision stage and rejects a switch during active work', async () => {

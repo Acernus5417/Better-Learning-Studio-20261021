@@ -261,7 +261,17 @@ export class CourseWorkflow {
       const completed = previous === undefined || (state.stage === 'delivery' && state.status === 'running')
         ? [] : [previous]
       for (const stage of completed) {
-        const current = await this.verify(this.courseRoot, stage, state.model)
+        let current: CourseStageEvidence | null
+        try { current = await this.verify(this.courseRoot, stage, state.model) }
+        catch (error) {
+          const retryStage = state.stage === 'complete' ? 'delivery' : state.stage
+          const validated = state.stage === 'complete' ? evidenceBefore(state.validated, 'delivery') : state.validated
+          const message = error instanceof Error ? error.message : String(error)
+          const changed = await this.write({ ...state, stage: retryStage, status: 'needs_review', validated,
+            nextAction: `${stage} 阶段恢复校验暂不可用：${message.slice(0, 240)}；检查运行环境后重试`,
+            updatedAt: this.now().toISOString() })
+          return { state: changed, invalidated: null }
+        }
         if (current?.signature !== state.validated[stage]?.signature) {
           const validated = evidenceBefore(state.validated, stage)
           const changed = await this.write({ ...state, stage, status: 'needs_review', validated,

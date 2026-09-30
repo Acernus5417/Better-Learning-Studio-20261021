@@ -165,3 +165,5 @@ Host 的 `CourseWatchdogService` 以前只主动通知静默尝试；现在已�
 确认前恢复缺口也已修复：`create-course` 失败时游标仍为 `waiting_confirmation`，现在 `refresh-inventory` 不再要求 ready/running，能从持久附件台账重试。资料阶段有新的人类附件或文件夹时，`import-attachments` 在导入前调用 `reopenIntake`，清除之前的摘要、确认和模型；若导入途中再失败，课程仍安全地等待新范围确认。模型必须重新 `propose`，并在更晚的直接用户回合 `confirm`。Host TypeScript、lint、22 项相关测试通过，无 API 调用。当前真实桌面端混合资料发送的文件选择器环节仍受上面的自动审批限制；不要声称完成端到端验收。
 
 另补齐 `create-course` 的更早失败边界：目录创建后如果运行时安装或 plan 检查失败，工具现在返回课程名、`initializationError` 与 `initialize` 重试提示；测试用缺运行时验证目录可找到且未伪造游标。原调用的同名 `create-course` 不应重试，因为目录已存在。Host TypeScript、lint、API 测试 7/7 通过。真实模型验收仍未进行。
+
+重启 `reconcile` 的 verifier 若因 Python／脚本／环境暂不可用而抛错，现在会把游标持久设为 `needs_review`，附短原因并保留此前有效凭证，避免界面保留旧的 `running`。完成课程的 packaged 复验若抛错，游标退到 delivery 待确认并移除 delivery 凭证，后续可重新核验 packaged，之前的 cards 等凭证保留。Host TypeScript、lint、工作流 12/12 测试通过。这里处理的是校验器异常；真正返回 `null` 的失效凭证仍按原路径回退最早失效阶段。
