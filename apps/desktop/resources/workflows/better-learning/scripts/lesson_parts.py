@@ -30,11 +30,16 @@ def check_math_boundaries(body):
 
 
 def plan(lesson):
-    rows = [('intro', '章首导学、目标、前置自测、术语', [])]
-    rows += [('knowledge', '知识小节 ' + k, [k]) for k in lesson['knowledge_ids']]
-    rows += [('closing', '章末应用、速查、练习、答案、复习、来源', [])]
-    return [dict(id=f'S{i:03d}', kind=kind, title=title, knowledge_ids=kids)
-            for i, (kind, title, kids) in enumerate(rows, 1)]
+    rows = [dict(kind='intro', title='章首路线与必要诊断', knowledge_ids=[])]
+    unit_plan = lesson.get('teaching_units', {})
+    if unit_plan.get('configured'):
+        rows += [dict(kind='knowledge', title=u['title'], knowledge_ids=u['knowledge_ids'],
+                      teaching_unit=u) for u in unit_plan['units']]
+    else:
+        rows += [dict(kind='knowledge', title='知识小节 ' + k, knowledge_ids=[k])
+                 for k in lesson['knowledge_ids']]
+    rows += [dict(kind='closing', title='章末综合、迁移与复习', knowledge_ids=[])]
+    return [dict(row, id=f'S{i:03d}') for i, row in enumerate(rows, 1)]
 
 
 def provision(course, folder, lesson, previous=None):
@@ -57,10 +62,12 @@ def provision(course, folder, lesson, previous=None):
                 protected[target] = sha256(inside(course, target))
                 files.append(Path(target).name)
         status = saved['status'] if saved else 'partial'
+        headings = (saved or {}).get('knowledge_headings', {})
         write_json(inside(course, receipt), {'schema_version': 1, 'section_id': sid,
-                   'status': status, 'files': files})
+                   'status': status, 'files': files, 'knowledge_headings': headings})
         item = dict(section, directory=directory, receipt=receipt,
-                    completed_files=files, status=status, next_chunk=f'{len(files) + 1:03d}.md')
+                    completed_files=files, status=status, knowledge_headings=headings,
+                    next_chunk=f'{len(files) + 1:03d}.md')
         sections.append(item)
         if saved:
             text = '\n\n'.join(inside(course, f['path']).read_text(encoding='utf-8') for f in saved['files'])
@@ -88,6 +95,12 @@ def inspect(course, attempt, lesson):
             if names[:len(previous)] != previous or (section.get('status') == 'complete' and
                     (receipt['status'] != 'complete' or names != previous)):
                 raise ValueError('Cannot discard or extend a completed checkpoint')
+            headings = receipt.get('knowledge_headings', {})
+            if (not isinstance(headings, dict) or any(not isinstance(v, str) or not v.strip()
+                                                      for v in headings.values())):
+                raise ValueError('Invalid knowledge_headings')
+            if section.get('status') == 'complete' and headings != section.get('knowledge_headings', {}):
+                raise ValueError('Cannot change completed checkpoint headings')
             if not names:
                 if receipt['status'] == 'complete': raise ValueError('Empty complete section')
                 continue
@@ -125,12 +138,28 @@ def inspect(course, attempt, lesson):
                 if not re.search(r'^#{1,6}\s+\S', text, re.M):
                     raise ValueError('Knowledge section incomplete (missing heading): '
                                      + ', '.join(section['knowledge_ids']))
+                if section.get('teaching_unit') or len(section['knowledge_ids']) > 1 or headings:
+                    from lesson_tasks import exercise_span
+                    if set(headings) != set(section['knowledge_ids']):
+                        raise ValueError('knowledge_headings must cover unit knowledge exactly')
+                    spans = []
+                    for kid in section['knowledge_ids']:
+                        span = exercise_span(text, headings[kid])
+                        if not span: raise ValueError('Missing knowledge heading: ' + kid)
+                        body = text[span[0]:span[1]].split('\n', 1)
+                        if len(body) < 2 or not body[1].strip():
+                            raise ValueError('Empty knowledge heading body: ' + kid)
+                        spans.append(span)
+                    ordered = sorted(spans)
+                    if any(a[1] > b[0] for a, b in zip(ordered, ordered[1:])):
+                        raise ValueError('Overlapping knowledge headings')
                 if not v2:
                     # legacy workers wrote the trailing ^K anchor themselves
                     for kid in section['knowledge_ids']:
                         if block_ids(text).count(kid) != 1:
                             raise ValueError('Knowledge section incomplete: ' + kid)
-            progress[sid] = {'status': receipt['status'], 'files': files}
+            progress[sid] = {'status': receipt['status'], 'files': files,
+                             'knowledge_headings': headings}
             texts[sid] = text
         except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             errors.append(sid + ': ' + str(exc))

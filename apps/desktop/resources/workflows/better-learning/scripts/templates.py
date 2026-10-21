@@ -1,8 +1,7 @@
 """Course document templates: the single source of truth for their paths.
 
-Every writing stage owns one template. Scripts reference templates only through
-this module, and stage snapshots record the template hash so that editing a
-template invalidates the products written from the old one.
+Each stage keeps a shared base. Selected discipline, activity and goal overlays
+are resolved by teaching_design.py and tracked in per-lesson input snapshots.
 """
 from __future__ import annotations
 
@@ -19,11 +18,11 @@ TEMPLATES = {
     'card': 'assets/templates/core-card.md',
 }
 
-# (使用阶段, 使用者) — 目前四个模板全部由主代理使用。
+# (使用阶段, 使用者) — 默认由主代理使用；bounded-v1 使用局部任务。
 STAGES = {
     'knowledge': ('知识分片与 知识内容.md', '主代理'),
     'path': ('学习路径', '主代理'),
-    'lesson': ('章级学习文档', '主代理'),
+    'lesson': ('章级学习文档共用骨架 + teaching_design 选中模板', '主代理'),
     'card': ('核心知识点卡片', '主代理'),
 }
 
@@ -45,7 +44,10 @@ def snapshot(names=None) -> dict:
 
 def check() -> dict:
     missing = [name for name in sorted(TEMPLATES) if not path(name).exists()]
-    return {'ok': not missing, 'missing': missing, 'hashes': snapshot()}
+    from teaching_design import check as check_teaching
+    teaching = check_teaching()
+    return {'ok': not missing and teaching['ok'], 'missing': missing,
+            'hashes': snapshot() if not missing else {}, 'teaching_templates': teaching}
 
 
 def main():

@@ -1,5 +1,47 @@
 # Better Learning Studio 内置工作流迁移交接
 
+## 2026-10-10 教学粒度整合复核
+
+用户再次提供同一份修改说明并要求整合。本轮按清单核对 95 个上游文件的 SHA-256；16 个已有三方合并文件的上游输入、Studio 输出以及 2 个新增资源均无漂移，内置资源无缺失，当前 Host 构建包含接入代码。随包 Python 的教学单元专项 24 项通过；Host 工具/阶段门禁与指南快照 13 项通过、1 项既有真实课程测试按环境跳过；预设和五份文档链接检查通过。没有新增功能代码、没有 API 调用、没有改动用户课程或重启窗口。验证时全局 pnpm 包装器尝试安装并因无 TTY 退出，随后直接执行 `node node_modules/vitest/vitest.mjs` 完成验证，后续聚焦测试沿用这一入口。
+
+## 当前未完成：历史会话显示（2026-10-10）
+
+参见 [当前进度](PROGRESS.md) 顶部诊断记录。历史数据与当前构建的只读查询均正常；“复变”主会话被归档，已等待用户验证“显示已归档”并展开工作区的结果或截图。不要搬迁、合并或清空数据，不要把此问题标记为已修复；先确认实际界面状态，再处理有证据的原因。上一轮教学粒度整合与启动优化的未提交改动全部保留。
+
+## 2026-10-09 教学单元与讲解深度整合
+
+本轮用户要求整合原 skill 的新修改，入口为 `C:/Users/win11/Documents/ChatGPT/better_learning/开发文档/教学粒度优化/修改说明与接入.md`。先备份了当前所有未提交工作流资源、Host 源码/测试、预设及配对说明到 `../backups/bls-pre-teaching-units-20261009-233239/workflow-before.zip`，SHA256 `5A972D8DE6A52BBA7A4166A322E49419B72C76F93A04267D8A215FD1BBE562AA`，范围与校验见同目录 README.txt，不含凭据与用户课程。以原 skill 当前 HEAD 为共同基线，对其 16 个已改资源做三方合并，均无冲突；另加入 `teaching_units.py` 和 `teaching-granularity.md`。没有覆盖原 skill/global skill，没有复制 SKILL.md，保留 Studio 原有 staged 校验、Office、宿主视觉子代理和恢复修改。
+
+接入包含 K/TU/L 分工、四档深度、一单元多 K、唯一正式教学位置、标题区间映射、独立 TEACH 身份、每节独占 EX 池、真实任务与反馈定位、unit_reviews 目标覆盖/推理/删减/限制记录。单元设计进入讲义输入/manifest、卡片计划的两次写入及快照、有界完整局部单元/策略与输入哈希；已完成 checkpoint 的标题映射受保护，单元变化不能用 refresh 代替 prepare/commit。默认仍不启用 bounded-v1。
+
+新增 `studio_teaching_units.py` 从实际章节和已核查知识索引验证全部章节，不能用调用者自填知识 ID 绕过，也不能只解析本章掩盖另一章错误。`course_workflow` 增加 `guide teaching-granularity`、`run-step units-resolve`（必须带 lesson）、`units-validate`（全章）。原生路径阶段调用此验证，讲义/卡片沿既有真实脚本新鲜度与回执门禁检查。兼容策略为未配置章明确返回 `legacy_lessons`，保留一 K 一 section，不自动改写旧课；新课由内置策略要求在 prepare 前规划单元，路径门禁没有把所有无配置旧章强制改成显式单元。显式单元要求 v2。运行规范、专用预设、两对中英说明已更新，skill 加载保持关闭。
+
+本地无 API 验证：随包 Python 3.12 执行新专项 24 项（上游 20＋Studio 4）、旧模板 12 项、链接 27 项，全部通过；Host 门禁与工具 13 项通过、1 项既有真实课程测试按环境跳过。包括真实 Python 的 native path 接受/拒绝、多 K 提交与卡片失效、有界 Runtime 的模拟审核提交；模拟回执不能证明真实隔离或学生学会。工具目录/schema 快照已更新，新增规范经真实 course_workflow guide 返回的完整内容快照。Host 类型检查、聚焦 lint、emit/tsdown、模板 22/1/9/4 资源目录、预设 YAML、五份文档链接和两对配对检查、diff --check 均通过。初次文档验证脚本误用未在根目录声明的 yaml 包，已改用仓库 cordis-yaml 解析器后通过，没有加依赖。
+
+开发 Host bundle 已更新，应用重启后加载新版工具枚举与预设；未强制重启当前用户窗口，未跑模型课程或修改现有课程。后续课程教学单元配置入口为 `_工作区/教学单元.json`，应用资源修改入口与命令见 `apps/desktop-host/README.zh.md#teaching-units`。本轮未验收真实模型/真实学生的教学效果，原迁移的混合材料真实端到端仍不能据此标为完成。
+
+## 2026-10-09 一键启动修复
+
+用户报告 start.bat 无法启动。原启动器复现为约一分钟无窗口，随后实际打开 Studio；未观察到致命启动错误。`dev.ts` 即使跳过构建也会重新准备 Python/Node/pnpm、Office 资源并执行完整运行测试，导致隐藏控制台期间无法看到进展。
+
+新增 `apps/desktop/scripts/development-primary-runtime.ts`：匹配当前应用版本、目标、锁文件摘要、运行入口、Python 包发行元数据和 Office 资源内容时直接复用，否则调用原准备函数。仅开发启动采用此检查，发布打包检查保持原样。`start-studio.ps1` 增加脱敏日志、失败退出码、随包 Node 回退与可选错误弹窗；`start.bat` 使用系统 PowerShell 绝对路径并开启弹窗。日志位于项目 `.desktop-cache/startup-<时间>-<pid>.log`，不要输出旧诊断 stdout 中未经脱敏的认证 URL。
+
+验证：新增两份 Vitest 共 6 项通过，包含运行资源变化/缺失、路径空格、非零退出与日志脱敏；聚焦 oxlint、TypeScript、桌面 README 配对通过，diff --check 通过。临时类型检查配置第一次缺供应库引用而报 vendor 错误，补齐正确引用后通过。实际资源复用检查约 1.1 秒；cmd.exe 调用 start.bat 返回 0，约 11 秒完成重复启动并聚焦已有窗口。原启动诊断打开的 Studio 保持运行，未强制退出，故修复后的全新进程冷启动尚未单独验证。computer-use 内核初始化受主机沙箱错误阻止，没有截图验证。未调用模型 API，未改课程或凭据；原模板整合与其待验收事项保留。
+
+## 2026-10-09 模板系统整合
+
+最新用户请求为整合 `C:/Users/win11/Documents/ChatGPT/better_learning/better-learning` 新增模板系统；已阅读同仓库 `AGENT_HANDOFF.md`。改动前工作区干净，相关源码备份为 `../backups/bls-pre-subject-templates-20261009/workflow-before.zip`，校验与范围见同目录 README。原 skill、全局 skill、用户课程及凭据未改动；验证无模型 API 调用。
+
+内置资源现在包含 22 类学科、generic 回退、9 活动模块和 4 目标模式，以及四个共用模板和学科路由。合并 `teaching_design.py`、讲义/卡片快照及计划、有界任务局部副本、模板资源校验；保留 Studio 的 staged 链接校验、Office 渲染、DSH 调度、watchdog 和打包修改，不复制 SKILL.md，不启用 bounded-v1。
+
+Host `guide` 增加 `subject-routing`、`teaching-catalog`；`run-step` 增加 `teaching-resolve`（默认或指定 lesson）、`teaching-validate`。`studio_teaching_design.py` 从课程实际索引提取知识归属，检查全部覆盖，不能用模型自填知识 ID 绕过校验。原生知识与路径阶段要求有效的显式 `_工作区/教学设计.json`；旧台账直接调用原脚本仍有无配置 generic 回退。运行策略和专用预设已说明选择、消费、修改后重新生成的流程。课程元数据增加教学设计字段，不改 DSH Session 格式或 SQLite schema。
+
+验证：随包 Python 3.12 模板/Studio 12 项通过，资源目录检查返回 22/1/9/4、36 文件；原有链接 27 项通过（仍有既有 Windows 子线程编码诊断）。Host 工具与实际知识/路径阶段检查 12 项通过、1 项已有课程验收按环境跳过；工具目录和 JSON Schema 有 owner-local 快照。原 skill 的 v2/有界扩展回归 60 项中 51 项通过、9 项因随包 Python 缺测试专用 reportlab 而报环境错误，不计作全通过。Host 类型检查、聚焦 lint 和 bundle 已通过。尚未做本次模板适配的真实模型教学效果验收，也不把模板测试等同于原迁移任务的真实混合资料端到端完成。
+
+课程 Host 聚焦回归最终为 10 个文件、46 项通过、1 项已有课程验收按环境跳过；随包预设 YAML 解析通过，确认 better-learning 预设包含教学模板步骤且仍关闭 skill。开发版从工作区加载 Host lib 和内置资源；Host 已重建。重启应用后加载新版工具枚举和预设。修改模板的入口及检查命令见 `apps/desktop-host/README.zh.md`；继续任务先看 PROGRESS.md 最新条目，避免读全部课程产物。
+
+## 原生工作流迁移基线（2026-09-29）
+
 更新日期：2026-09-29。当前分支：`codex/built-in-course-workflow`，从干净的 `main` 提交 `e1ffbe83f716feb637e567b6378dc755212bacbc` 开始。此文档用于额度刷新后直接继续；先看 `PROGRESS.md` 最后一条及本文件，不要重新读取整门课程的生成产物。
 
 ## 用户目标与约束

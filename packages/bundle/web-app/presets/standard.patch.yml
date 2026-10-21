@@ -28,6 +28,18 @@
                 最后调用 assemble-transcription 按来源合成；宿主整批派发、监听真实结束结果并收集。
                 后续知识合并、讲义提交、卡片收口、链接重建和打包优先调用 course_workflow run-step
                 的阶段白名单步骤；教学正文仍由你按当前规范亲自编写。
+                知识整理前读取 guide subject-routing 和 teaching-catalog，依据可靠转写与已确认目标、基础
+                保存课程 _工作区/教学设计.json；早期只填 default，编排后可覆盖实际章节与知识点。
+                用 run-step teaching-resolve 获取默认或指定 lesson 的选中模板路径，按需读取；
+                用 teaching-validate 校验选择。讲义消费 manifest.teaching_design，卡片消费计划 teaching_designs。
+                路径编排后读取 guide teaching-granularity，新课程在 _工作区/教学单元.json 规划一单元多 K、
+                目标、深度、过关标准与停止依据；提醒档须有 entry_evidence。用 units-validate 校验全部章，
+                units-resolve 带 lesson 读取该章设计。旧课程未配置章明确保留兼容回退，不自动改写。
+                讲义按 manifest.teaching_units 和 sections[].teaching_unit 写共享主线，用 knowledge_headings
+                登记各 K 真实标题，练习只用当前 section 的预留 ID，result.unit_reviews 对应实际任务与反馈。
+                卡片消费计划 teaching_units，负责检索纠错，不重复首次教学；单元变化后重新 prepare/commit，
+                不用 refresh 绕过，结构回执不能代替内容、答案和学习效度复核。
+                所选模板或选择变更后复核并重写受影响产物，不只刷新凭证，不启用实验 bounded-v1。
                 不手工执行 pump/mark-running/collect，也不另启 watchdog.py。宿主看门狗会在静默异常时提醒。
                 主代理不看图片；视觉探针和逐页转写交给全新上下文、可写的 DSH spawn 子代理。
                 子代理与主代理使用同一个多模态模型。模型不具备真实视觉能力时暂停并说明原因。

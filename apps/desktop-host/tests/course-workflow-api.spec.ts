@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -117,6 +117,21 @@ describe('course API directory selection', () => {
     expect(JSON.parse((guide as { result: string }).result)).toEqual({
       section: 'overview', scriptsRoot: join(root, 'scripts'), content: '# Application policy\n',
     })
+    const guides = await courseTool!.execute({ action: 'guide' }, { agent } as never)
+    const guideResult: unknown = JSON.parse((guides as { result: string }).result,
+      (key: string, value: unknown) => key === 'scriptsRoot' ? '<scriptsRoot>' : value)
+    expect({ guideResult, parameters: courseTool!.parameters }).toMatchSnapshot()
+    await mkdir(join(root, 'references'))
+    await writeFile(join(root, 'references/teaching-granularity.md'), await readFile(
+      join(process.cwd(), 'apps/desktop/resources/workflows/better-learning/references/teaching-granularity.md'), 'utf8'))
+    const unitGuide = await courseTool!.execute({ action: 'guide', section: 'teaching-granularity' }, { agent } as never)
+    const unitResult: unknown = JSON.parse((unitGuide as { result: string }).result,
+      (key: string, value: unknown) => key === 'scriptsRoot' ? '<scriptsRoot>' : value)
+    expect(unitResult).toMatchSnapshot('teaching unit guide delivered to the writer')
+    await expect(courseTool!.execute({ action: 'run-step', step: 'teaching-resolve', lesson: 'L-01' }, { agent } as never))
+      .rejects.toThrow('not allowed during materials')
+    await expect(courseTool!.execute({ action: 'run-step', step: 'units-resolve', lesson: 'L-01' }, { agent } as never))
+      .rejects.toThrow('not allowed during materials')
     await expect(courseTool!.execute({ action: 'run-step', step: 'package' }, { agent } as never))
       .rejects.toThrow('not allowed during materials')
     selectedModel = 'different-model'

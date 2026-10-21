@@ -28,7 +28,8 @@ STAGES = {
     'transcription': (['worker-policy.md', 'material-processing.md'], [], ['convert_materials.py']),
     'knowledge': (['knowledge-model.md'], ['knowledge-chapter.md'], ['assemble_knowledge.py']),
     'path': (['learning-path.md'], ['learning-path.md', 'lesson-blueprint.json'], ['validate_package.py']),
-    'lesson': (['chapter-writing.md', 'lesson-writing-policy.md', 'lesson-pipeline.md'], ['learning-chapter.md'], ['lesson_tasks.py']),
+    # The pipeline command guide is coordinator-only; workers cannot run its commands.
+    'lesson': (['chapter-writing.md', 'lesson-writing-policy.md'], ['learning-chapter.md'], ['lesson_tasks.py', 'teaching_units.py']),
     'cards': (['core-cards.md'], ['core-card.md'], ['core_cards.py']),
     'relations': (['obsidian-links.md'], [], ['obsidian_links.py']),
     'quality': (['quality-checks.md', 'delivery-layout.md'], [], ['validate_package.py']),

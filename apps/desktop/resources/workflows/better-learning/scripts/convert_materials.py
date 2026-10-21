@@ -80,10 +80,16 @@ def locked(course):
     if not readonly_invocation():
         require_setup(course)
     lock = folder / '转写任务.lock'
-    try:
-        handle = lock.open('x', encoding='utf-8')
-    except FileExistsError as exc:
-        raise ValueError('调度器正在写台账；确认无调度命令运行后才可移除过期锁') from exc
+    import time as _time
+    handle = None
+    deadline = _time.monotonic() + 30.0
+    while handle is None:
+        try:
+            handle = lock.open('x', encoding='utf-8')
+        except FileExistsError as exc:
+            if _time.monotonic() >= deadline:
+                raise ValueError('调度器正在写台账；确认无调度命令运行后才可移除过期锁') from exc
+            _time.sleep(0.15)
     try:
         with handle:
             handle.write(now())
@@ -391,8 +397,11 @@ def assess(course, source, unit, member, structured=False):
         text = path.read_text(encoding='utf-8').strip()
         state = 'unresolved' if not text or (not structured and ('[待核实]' in text or '[不具备读图能力]' in text)) else 'done'
         unit['capability_failed'] = not structured and '[不具备读图能力]' in text
-        if '<!-- BL-' in text:
-            raise ValueError('正文包含保留的合成标记')
+        # 源文件本身是 Better Learning 转写件（如用户提供的 agent-v1 转写）时，正文会带保留标记。
+        # 按既有设计，这类标记由 assemble 的可逆转义（entity_sections.normalize_payload）处理并记入
+        # 转写索引.json 的 transforms；此处不再提前判失败，否则全部单元会在合成前被挡住。
+        # if '<!-- BL-' in text:
+        #     raise ValueError('正文包含保留的合成标记')
         if not text:
             unit['error'] = '转写为空'
         elif state == 'unresolved':
@@ -519,6 +528,21 @@ def media_references(text):
     return [ref for ref in refs if ref and not ref.startswith(('http://', 'https://', 'mailto:'))]
 
 
+PAYLOAD_ANCHOR = re.compile(r'(?m)(^|[ \t])\^([A-Za-z0-9-]+)[ \t]*$')
+
+
+def escape_payload_anchors(text):
+    """Reversible display escape for block anchors inside a trusted source payload.
+
+    载荷本身若是另一门课程的 Better Learning 转写件，正文里会带 `NAME ^NAME` 之类的
+    块锚点；v2 结构解析只在系统层允许身份锚点，因此这里统一转义为 `&#94;`（渲染仍是 ^）。
+    """
+    def replace(match):
+        return f'{match.group(1)}&#94;{match.group(2)}'
+
+    return PAYLOAD_ANCHOR.subn(replace, text)
+
+
 @validation_run
 def diagnose(course):
     """One-shot, read-only health report of the transcription pipeline.
@@ -598,12 +622,15 @@ def assemble(course):
                     body = body + f'\n{token}\n'
                     transforms.append({'unit_id': unit['id'], 'fences_closed': 1,
                                        'fence_lines': [opened], 'fence_token': token})
-                conflicts = reserved_marker_conflicts(body)
+                conflicts = reserved_marker_conflicts(body, [(0, len(body))])
                 normalized, mapping = normalize_payload(body, [(0, len(body))]) if conflicts else (body, [])
                 if conflicts:
                     transforms.append({'unit_id': unit['id'], 'escaped': True,
                                        'original_hash': payload_hash(body, [(0, len(body))]),
                                        'conflicts': [item[1] for item in conflicts]})
+                normalized, anchors_escaped = escape_payload_anchors(normalized)
+                if anchors_escaped:
+                    transforms.append({'unit_id': unit['id'], 'anchors_escaped': anchors_escaped})
                 page = (f"## {unit['locator']}\n\n{uid} ^{uid}\n\n"
                         f"<!-- BL-SOURCE-TEXT:BEGIN {uid} -->\n{normalized}\n<!-- BL-SOURCE-TEXT:END {uid} -->")
                 blocks.append(f"<!-- BL-SRC:BEGIN {uid} -->\n\n{page}\n\n<!-- BL-SRC:END {uid} -->\n")

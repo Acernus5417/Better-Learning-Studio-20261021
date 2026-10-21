@@ -122,6 +122,8 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 pnpm run dev:desktop
 ```
 
+在 Better Learning Studio 的 Windows 开发目录中，双击根目录 `start.bat` 启动已构建的应用。启动器从项目目录运行 `start-studio.ps1 -SkipBuild -ShowErrorDialog`，批处理窗口关闭后应用继续运行。固定版本、必要文件、Python 发行包元数据和 Office 资源匹配时复用开发资源；资源缺失或变化时正常准备。启动输出写入 `.desktop-cache/startup-<timestamp>-<pid>.log`，其中 URL 和常见凭据字段会被脱敏；命令失败时弹窗显示日志路径。源码修改后需先重新构建，再使用此快捷方式。
+
 开发 Harness 状态默认写入 `apps/desktop/.desktop-build/development/home`，一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。因此，会话、设置、凭据、包链接和浏览器数据都不会进入用户正常使用的 Harness home；显式 `DSH_HOME` 只会替换开发 Harness home。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：

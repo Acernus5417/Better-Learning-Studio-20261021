@@ -18,7 +18,9 @@ manifest 权限与转写阶段一致：**只读正文、只写片段**；`agent_
 
 EX ID 预留数量默认为 `max(24, 6×本章知识数+12)`，可在章节索引设置 exercise_count；它是可用 ID 池，不是练习数量要求；未使用的预留 ID 保持 reserved，不构成有效关系目标。
 
-**模板硬约束**：写作前先读 `assets/templates/learning-chapter.md`（`manifest.template`）。模板哈希已纳入输入快照，模板变化会让基于旧模板的章节失效，需要重新按模板核对。
+**模板组合契约**：写作前读 `assets/templates/learning-chapter.md`（`manifest.template`）共用骨架，再只读 `manifest.teaching_design` 选中的学科、活动、目标模式；`knowledge` 中的覆盖用于对应知识小节，其余用 `lesson`。按 [学科路由](subject-routing.md) 维护 `_工作区/教学设计.json`。模板与有效选择哈希已纳入输入快照；所选资源变化需重新核对，未选学科的改动不会单独使本章过期。
+
+**单元契约**：新课程在 prepare 前按 [教学粒度规范](teaching-granularity.md) 写 `_工作区/教学单元.json`。manifest.teaching_units 与 sections[].teaching_unit 传递分组、目标、深度、标准和停止依据。一个 knowledge section 可覆盖多个 K，各 K 的真实标题在 section.json.knowledge_headings 登记；公共内容不重复。显式单元的预留 EX ID 按 section 独占分配，实际练习可在单元/章首/章末；result.unit_reviews 映射全部目标到实际练习与反馈。配置/策略变化纳入快照，不影响其他讲有效设计的独立指纹。旧课程无配置保留一 K 一 section。
 
 ## 二、主代理逐章写作
 
@@ -32,7 +34,7 @@ python -X utf8 <scriptsRoot>/lesson_tasks.py --course COURSE status
 commit 的流程没有任何一步可以被"看起来差不多"绕过：
 
 1. **输入校验**：知识/路径/需求/模板/规范/注册表版本与输入包快照一致（不一致即 `STALE_INPUT`）；逐节检查回执、文件、围栏与公式边界、允许链接；片段中出现 `BL-*`、`ID ^ID` 锚点或 `^K/^EX` 直接报 `RESERVED_SYSTEM_MARKUP`。
-2. **装配**：按 section 清单合并片段，插入 `BL-L`、`BL-TEACH`、`BL-EX` 边界与该实体的入口锚点；练习区间由 `result.json` 的 `exercises[].heading` 定位，标题缺失或不唯一即 `INVALID_OUTPUT`。
+2. **目标复核与装配**：显式单元先检查 unit_reviews 的目标覆盖、实际练习映射、反馈定位与复核说明；按 section 清单合并片段，插入 `BL-L`、`BL-TEACH`、`BL-EX` 边界与该实体的入口锚点；练习区间由 `result.json` 的 `exercises[].heading` 定位，标题缺失或不唯一即 `INVALID_OUTPUT`。
 3. **关系渲染与阶段性校验**：在候选文件集（虚拟完整文件集）上推导关系、渲染 `BL-REL`，检查结构、链接权限、投影相等、KP/SRC 约束与 DEP 无环。
 4. **提交**：写入事务日志后按文件原子替换；任一步失败按备份回滚。提交成功后把实际使用的练习登记进 `_工作区/练习索引.jsonl`（status=used）。
 

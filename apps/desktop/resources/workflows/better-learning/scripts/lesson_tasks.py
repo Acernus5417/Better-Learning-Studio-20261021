@@ -16,6 +16,8 @@ from obsidian_links import (LEGACY_BLOCK_RELATIONS, block_ids, build_map, entity
                             validate_reference_links)
 from relation_renderer import apply_edits
 from templates import hash_of as template_hash
+from teaching_design import resolve as resolve_teaching, fingerprint as teaching_fingerprint
+from teaching_units import resolve as resolve_units, fingerprint as units_fingerprint, validate_result as validate_unit_result
 
 LEDGER = '_工作区/讲义任务.json'
 INDEX = '_工作区/章节索引.json'
@@ -128,6 +130,10 @@ def snapshot(course, lesson):
     requirements = document(course, '学习需求.md').read_text(encoding='utf-8')
     if not requirements.strip(): raise ValueError('学习需求不能为空')
     root = Path(__file__).resolve().parents[1]
+    teaching = resolve_teaching(course, lesson['id'], [k['id'] for k in knowledge])
+    units = resolve_units(course, lesson['id'], knowledge)
+    if units['configured'] and legacy:
+        raise ValueError('Teaching units require v2 course migration before prepare')
     spec = {'snapshot_version': 2,
             'fragments': {k: digest(v) for k, v in slices.items()}, 'records': digest(records),
             'prerequisites': {k: digest(v) for k, v in prerequisite_slices.items()},
@@ -141,6 +147,8 @@ def snapshot(course, lesson):
             'parts_protocol': sha256(root / 'scripts/lesson_parts.py'),
             'writing_spec': sha256(root / 'references/chapter-writing.md'),
             'template': template_hash('lesson'),
+            'teaching_design': teaching_fingerprint(teaching),
+            'teaching_units': units_fingerprint(units),
             'graph_policy_version': GRAPH_POLICY_VERSION,
             # Identity of the entities a chapter may link, not the whole registry:
             # registering cards or exercises later must not stale teaching content.
@@ -151,7 +159,8 @@ def snapshot(course, lesson):
             'link_schema_version': 1 if legacy else 2}
     return {'input_hash': digest(spec), 'hashes': spec, 'slices': slices, 'knowledge': knowledge,
             'prerequisite_slices': prerequisite_slices, 'prerequisites': prerequisites,
-            'path_excerpt': excerpt, 'requirements': requirements}
+            'path_excerpt': excerpt, 'requirements': requirements, 'teaching_design': teaching,
+            'teaching_units': units}
 
 
 def lesson_links(course, lesson, snap, mapping, registry_obj):
@@ -265,12 +274,20 @@ def wrap_section(kind, section_id, body):
 
 def exercise_span(text, heading):
     """Span of one exercise: its heading to the next heading of the same or higher level."""
-    match = re.search(r'^#{1,6}[ \t]+' + re.escape(heading.strip()) + r'[ \t]*$', text, re.M)
-    if not match:
+    from obsidian_links import mask_code
+    visible = mask_code(text)
+    matches = [m for m in re.finditer(r'^#{1,6}[ \t]+' + re.escape(heading.strip()) + r'[ \t]*$', text, re.M)
+               if visible[m.start():m.start() + 1] == '#']
+    if len(matches) > 1:
+        raise ValueError('Duplicate heading: ' + heading)
+    if not matches:
         return None
+    match = matches[0]
     level = len(re.match(r'^#+', match.group(0)).group(0))
     end = len(text)
     for other in re.finditer(r'^#{1,6}[ \t]+\S', text[match.end():], re.M):
+        if visible[match.end() + other.start():match.end() + other.start() + 1] != '#':
+            continue
         if len(re.match(r'^#+', other.group(0)).group(0)) <= level:
             end = match.end() + other.start()
             break
@@ -278,67 +295,74 @@ def exercise_span(text, heading):
 
 
 def assemble_lesson_document(course, attempt, lesson, raw_text):
-    """Insert frontmatter, BL-L/TEACH/EX boundaries and identity anchors."""
-    v2 = is_v2(course)
-    if not v2:
+    """Keep shared unit prose once; preserve each K and EX as sibling entities."""
+    if not is_v2(course):
         return raw_text
     lid = lesson['id']
-    registry_obj = Registry(course)
-    frontmatter = ''
-    body = raw_text
-    match = re.match(r'\A---\n.*?\n---\n', raw_text, re.S)
-    if match:
-        frontmatter, body = match.group(0), raw_text[match.end():]
-    progress = attempt.get('part_progress', {})
-    sections = attempt.get('sections', [])
-    intro_text, knowledge_text, closing_text = [], {}, []
-    for section in sections:
-        saved = progress.get(section['id'])
+    receipt = attempt.get('worker_result') or {}
+    exercises = receipt.get('exercises', [])
+    exids = [e.get('id') for e in exercises]
+    if len(set(exids)) != len(exids) or any(ex not in attempt.get('allowed_blocks', []) for ex in exids):
+        raise ValueError('INVALID_OUTPUT: Invalid/duplicate reserved exercise ID')
+    found_ex, found_k, output, frontmatter = set(), set(), [], ''
+    for section in attempt.get('sections', []):
+        saved = attempt.get('part_progress', {}).get(section['id'])
         if not saved:
             continue
-        texts = []
-        for entry in saved['files']:
-            texts.append(inside(course, entry['path']).read_text(encoding='utf-8'))
-        merged = '\n\n'.join(texts)
+        merged = '\n\n'.join(inside(course, f['path']).read_text(encoding='utf-8') for f in saved['files'])
         if section['kind'] == 'intro':
-            intro_text.append(merged)
-        elif section['kind'] == 'knowledge' and section.get('knowledge_ids'):
-            knowledge_text[section['knowledge_ids'][0]] = merged
-        else:
-            closing_text.append(merged)
-    closing = '\n\n'.join(closing_text)
-    receipt = attempt.get('worker_result') or {}
-    for entry in receipt.get('exercises', []):
-        ex_id, heading = entry.get('id'), entry.get('heading', '')
-        if not ex_id or ex_id not in attempt.get('allowed_blocks', []):
-            raise ValueError('INVALID_OUTPUT: 回执中的练习不在预留集合内：' + str(ex_id))
-        span = exercise_span(closing, heading)
-        if not span:
-            raise ValueError('INVALID_OUTPUT: 找不到练习标题：' + heading)
-        start, end = span
-        chunk = closing[start:end]
-        if re.search(r'^#{1,6}[ \t]+\S', chunk[len(chunk.splitlines()[0]):], re.M) and \
-                any(other.get('heading', '') in chunk[len(chunk.splitlines()[0]):]
-                    for other in receipt.get('exercises', []) if other is not entry):
-            raise ValueError('INVALID_OUTPUT: 练习区间与其他练习重叠：' + heading)
-        wrapped = wrap_section('EX', ex_id, insert_identity_anchor(chunk, ex_id))
-        closing = closing[:start] + wrapped + '\n\n' + closing[end:]
-    intro_merged = '\n\n'.join(item for item in intro_text if item.strip())
-    if frontmatter:
-        intro_merged = re.sub(r'\A---\n.*?\n---\n?', '', intro_merged, flags=re.S).lstrip('\n')
-    sections_out = [frontmatter.rstrip('\n')] if frontmatter else []
-    sections_out.append(f'<!-- BL-L:BEGIN {lid} -->')
-    sections_out.append(insert_identity_anchor(intro_merged, lid) if intro_merged.strip() else f'{lid} ^{lid}')
-    for kid in lesson['knowledge_ids']:
-        text = knowledge_text.get(kid)
-        if not text:
-            raise ValueError('INVALID_OUTPUT: 缺少知识小节片段：' + kid)
-        section_id = teaching_section_id(lid, kid)
-        sections_out.append(wrap_section('TEACH', section_id, insert_identity_anchor(text, kid)))
-    if closing.strip():
-        sections_out.append(closing.strip())
-    sections_out.append(f'<!-- BL-L:END {lid} -->')
-    return '\n\n'.join(sections_out).strip() + '\n'
+            match = re.match(r'\A---\n.*?\n---(?:\n|$)', merged, re.S)
+            if match:
+                frontmatter, merged = match.group(0), merged[match.end():]
+        spans = []
+        headings = saved.get('knowledge_headings', {})
+        for kid in section.get('knowledge_ids', []):
+            if kid in found_k:
+                raise ValueError('INVALID_OUTPUT: Duplicate teaching knowledge: ' + kid)
+            found_k.add(kid)
+            span = exercise_span(merged, headings[kid]) if headings else (0, len(merged))
+            if not span:
+                raise ValueError('INVALID_OUTPUT: Missing knowledge heading: ' + kid)
+            spans.append((*span, 'TEACH', teaching_section_id(lid, kid), kid))
+        for entry in exercises:
+            heading = entry.get('heading', '')
+            if not isinstance(heading, str) or not heading.strip():
+                raise ValueError('INVALID_OUTPUT: Exercise requires heading')
+            span = exercise_span(merged, heading)
+            if not span:
+                continue
+            exid = entry['id']
+            if exid in found_ex:
+                raise ValueError('INVALID_OUTPUT: Exercise heading occurs in multiple sections: ' + heading)
+            if 'reserved_exercises' in section and exid not in {e['id'] for e in section['reserved_exercises']}:
+                raise ValueError('INVALID_OUTPUT: Exercise ID belongs to another section: ' + exid)
+            found_ex.add(exid)
+            if lesson.get('teaching_units', {}).get('configured'):
+                feedback = exercise_span(merged[span[0]:span[1]], entry['feedback_heading'])
+                if not feedback or feedback[0] == 0:
+                    raise ValueError('INVALID_OUTPUT: Missing exercise feedback heading: ' + exid)
+                chunk = merged[span[0]:span[1]]
+                feedback_text = chunk[feedback[0]:feedback[1]].split('\n', 1)
+                if len(feedback_text) < 2 or not feedback_text[1].strip():
+                    raise ValueError('INVALID_OUTPUT: Empty exercise feedback: ' + exid)
+                task_text = chunk[:feedback[0]].split('\n', 1)
+                if len(task_text) < 2 or not task_text[1].strip():
+                    raise ValueError('INVALID_OUTPUT: Empty exercise task: ' + exid)
+            spans.append((*span, 'EX', exid, exid))
+        spans.sort(key=lambda v: v[:2])
+        if any(a[1] > b[0] for a, b in zip(spans, spans[1:])):
+            raise ValueError('INVALID_OUTPUT: Overlapping K/EX headings; place tasks beside knowledge headings')
+        edits = [(start, end, wrap_section(kind, sid, insert_identity_anchor(merged[start:end], anchor)) + '\n\n')
+                 for start, end, kind, sid, anchor in spans]
+        merged = apply_edits(merged, edits) if edits else merged
+        if section['kind'] == 'intro':
+            merged = insert_identity_anchor(merged, lid)
+        output.append(merged.strip())
+    if found_k != set(lesson['knowledge_ids']):
+        raise ValueError('INVALID_OUTPUT: Teaching knowledge coverage differs from lesson')
+    if found_ex != set(exids):
+        raise ValueError('INVALID_OUTPUT: Missing exercise headings: ' + ', '.join(sorted(set(exids) - found_ex)))
+    return (frontmatter.rstrip() + '\n\n' + wrap_section('L', lid, '\n\n'.join(output))).strip() + '\n'
 
 
 def invalidate(course, reason):
@@ -382,6 +406,14 @@ def build_lesson_input(course, definition, row, snap, mapping, root, previous=No
     row['reference_targets'] = lesson_reference_targets(course, row, snap, links)
     from lesson_parts import provision
     sections, protected, resume = provision(course, folder, row, previous)
+    if snap['teaching_units']['configured']:
+        pools = [[] for _ in sections]
+        for i, ex in enumerate(exercises):
+            pools[i % len(sections)].append({'id': ex, 'owner_lesson_id': lid})
+        for section, pool in zip(sections, pools):
+            section['reserved_exercises'] = pool
+        inputs['teaching_units'] = f'{folder}/教学单元.json'
+        write_json(inside(course, inputs['teaching_units']), snap['teaching_units'])
     if resume:
         inputs['continuity'] = f'{folder}/续写摘要.json'
         write_json(inside(course, inputs['continuity']), resume)
@@ -390,6 +422,7 @@ def build_lesson_input(course, definition, row, snap, mapping, root, previous=No
                           receipt=str(inside(course, s['receipt'])),
                           anchor_literal=(f"{s['knowledge_ids'][0]} ^{s['knowledge_ids'][0]}"
                                           if s.get('knowledge_ids') else None),
+                          anchor_literals=[f'{kid} ^{kid}' for kid in s['knowledge_ids']],
                           system_slots=['identity', 'relations'] if s.get('knowledge_ids') else [])
                      for s in sections]
     from templates import path as template_path
@@ -403,6 +436,8 @@ def build_lesson_input(course, definition, row, snap, mapping, root, previous=No
                 'policy': str(root / 'references/lesson-writing-policy.md'),
                 'writing_spec': str(root / 'references/chapter-writing.md'),
                 'template': str(template_path('lesson')),
+                'teaching_design': snap['teaching_design'],
+                'teaching_units': snap['teaching_units'],
                 'result': str(inside(course, f'{folder}/{lid}.result.json')),
                 'write_mode': 'parts-v1', 'sections': sections_meta,
                 'links': links, 'allowed_blocks': row['knowledge_ids'] + exercises,
@@ -417,6 +452,7 @@ def build_lesson_input(course, definition, row, snap, mapping, root, previous=No
                link_manifest_hash=manifest['link_manifest_hash'],
                result=f'{folder}/{lid}.result.json', output=f'{folder}/{lid}.md',
                agent_may_write_system_regions=manifest['agent_can_write_system_regions'])
+    row['input_hashes'] = {p: sha256(inside(course, p)) for p in inputs.values()}
     from bounded_pipeline import provision as provision_bounded
     provision_bounded(course, row, snap)
     if row.get('blueprint'):
@@ -454,6 +490,7 @@ def prepare(course, max_attempts=3):
         row = dict(item, status='done' if keep else 'pending', input_hash=snap['input_hash'],
                    attempt_count=previous.get('attempt_count', 0) if previous.get('input_hash') == snap['input_hash'] else 0,
                    knowledge_ids=[k['id'] for k in snap['knowledge']],
+                   teaching_units=snap['teaching_units'],
                    folder=f"_工作区/讲义输入/{item['id']}", manifest=f"_工作区/讲义输入/{item['id']}/task.json")
         if keep:
             for k in ('output_hash', 'committed_attempt', 'allowed_links', 'allowed_blocks'): row[k] = previous[k]
@@ -563,6 +600,8 @@ def commit(course, lesson_id):
         result = read_json(inside(course, a['result']))
         if result.get('status') != 'complete' or result.get('lesson_id') != lesson['id'] or sorted(result.get('knowledge_ids', [])) != sorted(lesson['knowledge_ids']):
             raise ValueError('Incomplete/foreign lesson result')
+        a['teaching_quality'] = validate_unit_result(lesson.get('teaching_units', {}), result,
+            [b for b in a['allowed_blocks'] if b.startswith('EX-')])
         raw = staged.read_text(encoding='utf-8')
         if not raw.strip(): raise ValueError('Empty output')
         documents = {}
@@ -692,7 +731,11 @@ def check(course):
             from quality_gates import enabled, check_retained
             if enabled(course):
                 check_retained(course, lesson['path'])
-            if snapshot(course, definitions[lesson['id']])['input_hash'] != lesson['input_hash']: raise ValueError('Lesson input stale')
+            current = snapshot(course, definitions[lesson['id']])
+            if current['input_hash'] != lesson['input_hash']: raise ValueError('Lesson input stale')
+            if current['teaching_units']['configured'] and (not lesson.get('teaching_units') or
+                    units_fingerprint(current['teaching_units']) != units_fingerprint(lesson['teaching_units'])):
+                raise ValueError('Lesson teaching units stale; prepare/commit required')
             path = inside(course, lesson['path'])
             text = path.read_text(encoding='utf-8')
             if lesson.get('semantic_hash'):
@@ -704,6 +747,8 @@ def check(course):
             a, _ = find(data, lesson['committed_attempt'])
             if a['state'] != 'committed' or a.get('commit_hash') not in {lesson.get('semantic_hash'), lesson['output_hash']}:
                 raise ValueError('Lesson commit evidence missing')
+            validate_unit_result(current['teaching_units'], a.get('worker_result', {}),
+                                 [b for b in lesson['allowed_blocks'] if b.startswith('EX-')])
             # The lesson's own identity block is defined by the assembler, not by the writer.
             allowed_blocks = list(lesson['allowed_blocks']) + [lesson['id']]
             errors.extend(validate_document(course, text, lesson['allowed_links'], allowed_blocks,
@@ -733,8 +778,13 @@ def record_link_relocation(course, target_moves):
     for lesson in data['lessons']:
         if lesson['status'] != 'done': continue
         definition = definitions[lesson['id']]
+        current = snapshot(course, definition)
+        saved_units = lesson.get('teaching_units')
+        if ((saved_units and units_fingerprint(current['teaching_units']) != units_fingerprint(saved_units)) or
+                (not saved_units and current['teaching_units']['configured'])):
+            raise ValueError('Teaching unit design changed; refresh cannot replace prepare/commit')
         lesson['path'] = definition['path']
-        lesson['input_hash'] = snapshot(course, definition)['input_hash']
+        lesson['input_hash'] = current['input_hash']
         file_path = inside(course, lesson['path'])
         old_hash, old_semantic = lesson['output_hash'], lesson.get('semantic_hash')
         lesson['output_hash'] = sha256(file_path)

@@ -53,6 +53,7 @@ def provision(course, row, snap):
     blueprint = read_json(Path(__file__).resolve().parents[1] / 'assets/templates/lesson-blueprint.json')
     blueprint.update({'schema_version': 1, 'lesson_id': row['id'], 'input_hash': row['input_hash'],
                  'status': 'needs_planning', 'knowledge_order': row['knowledge_ids'],
+                 'teaching_units': snap['teaching_units'],
                  'goals': [], 'exercise_plan': [], 'interfaces': [],
                  'source_map': {kid: by_id[kid].get('source_refs', []) for kid in row['knowledge_ids']}})
     plan_path = folder + '/blueprint.json'
@@ -67,6 +68,35 @@ def provision(course, row, snap):
         kids = section['knowledge_ids'] if section['kind'] == 'knowledge' else row['knowledge_ids']
         deps = sorted({dep for kid in kids for dep in by_id[kid].get('prerequisites', [])} - set(kids))
         paths = []
+        # Keep selected pedagogy inside the bounded task's assigned inputs.
+        import copy
+        teaching = copy.deepcopy(manifest['teaching_design'])
+        teaching['knowledge'] = {kid: item for kid, item in teaching['knowledge'].items()
+                                 if section['kind'] == 'knowledge' and kid in kids}
+        copied = {}
+        for item in [teaching['lesson']] + list(teaching['knowledge'].values()):
+            for template in item['resources']:
+                original = template['path']
+                if original not in copied:
+                    local = sf + '/teaching/' + str(len(copied) + 1) + '.md'
+                    atomic_text(inside(Path(course), local), Path(original).read_text(encoding='utf-8'))
+                    copied[original] = local
+                    paths.append(local)
+                template['path'] = str(inside(Path(course), copied[original]))
+                template['source_sha256'] = template['sha256']
+                template['sha256'] = sha256(Path(template['path']))
+        teaching_path = sf + '/teaching-design.json'
+        write_json(inside(Path(course), teaching_path), teaching)
+        paths.append(teaching_path)
+        units = copy.deepcopy(snap['teaching_units'])
+        if section['kind'] == 'knowledge':
+            units['units'] = [u for u in units['units'] if set(u['knowledge_ids']).intersection(kids)]
+        unit_policy = sf + '/teaching/granularity.md'
+        atomic_text(inside(Path(course), unit_policy), Path(units['policy']).read_text(encoding='utf-8'))
+        units['policy'] = str(inside(Path(course), unit_policy))
+        units_path = sf + '/teaching-units.json'
+        write_json(inside(Path(course), units_path), units)
+        paths.extend([unit_policy, units_path])
         source_evidence = []
         for kid in kids + deps:
             entry = by_id[kid]
@@ -107,10 +137,13 @@ def provision(course, row, snap):
                        'attachments': links.get('attachments', {})}
         allowed_ids = set(kids + deps) | set(local_links['lessons'])
         contract = {'lesson_id': row['id'], 'title': row['title'], 'order': row['order'],
+                    'teaching_design': teaching,
+                    'teaching_units': units,
                     'section_id': section['id'], 'kind': section['kind'], 'links': local_links,
                     'reference_targets': [r for r in row.get('reference_targets', [])
                                           if r['id'] in allowed_ids or r['id'].startswith('P-')],
-                    'reserved_exercises': manifest['reserved_exercises'] if section['kind'] == 'closing' else [],
+                    'reserved_exercises': section.get('reserved_exercises',
+                        manifest['reserved_exercises'] if section['kind'] == 'closing' else []),
                     'system_markup': 'forbidden; assembler owns BL boundaries and identity anchors',
                     'output': {'directory': section['directory'], 'receipt': section['receipt']}}
         contract_path = sf + '/writer-contract.json'

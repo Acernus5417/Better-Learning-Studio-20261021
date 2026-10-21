@@ -43,6 +43,9 @@ const COURSE_GUIDES = {
   'knowledge-model': 'references/knowledge-model.md',
   'knowledge-store': 'references/knowledge-store.md',
   'knowledge-chapter-template': 'assets/templates/knowledge-chapter.md',
+  'subject-routing': 'references/subject-routing.md',
+  'teaching-catalog': 'assets/templates/subjects/catalog.json',
+  'teaching-granularity': 'references/teaching-granularity.md',
   'learning-path': 'references/learning-path.md',
   'learning-path-template': 'assets/templates/learning-path.md',
   'chapter-writing': 'references/chapter-writing.md',
@@ -58,6 +61,10 @@ const COURSE_GUIDES = {
 type CourseGuide = keyof typeof COURSE_GUIDES
 
 const COURSE_STEPS = {
+  'teaching-resolve': { stages: ['knowledge', 'path', 'lessons', 'cards'], script: 'studio_teaching_design.py', args: ['resolve'] },
+  'teaching-validate': { stages: ['knowledge', 'path', 'lessons', 'cards'], script: 'studio_teaching_design.py', args: ['validate', '--require-config'] },
+  'units-resolve': { stages: ['path', 'lessons', 'cards'], script: 'studio_teaching_units.py', args: ['resolve'] },
+  'units-validate': { stages: ['path', 'lessons', 'cards'], script: 'studio_teaching_units.py', args: ['validate'] },
   'knowledge-assemble': { stages: ['knowledge'], script: 'assemble_knowledge.py', args: [] },
   'knowledge-check': { stages: ['knowledge', 'path', 'lessons', 'cards'], script: 'assemble_knowledge.py', args: ['--check'] },
   'lesson-prepare': { stages: ['lessons'], script: 'lesson_tasks.py', args: ['prepare'] },
@@ -323,7 +330,7 @@ export async function installCourseWorkflowApi(
           throw new Error(`course workflow: ${step} is not allowed during ${state.stage}`)
         }
         const args: string[] = [...selected.args]
-        if (step === 'lesson-commit') {
+        if (step === 'lesson-commit' || step === 'units-resolve' || (step === 'teaching-resolve' && lesson !== undefined)) {
           if (lesson === undefined || !/^L-[A-Z0-9-]{1,60}$/u.test(lesson)) {
             throw new Error('course workflow: a valid lesson ID is required')
           }
@@ -502,7 +509,7 @@ export async function installCourseWorkflowApi(
         enum: Object.keys(COURSE_GUIDES) },
       step: { type: 'string', description: 'For run-step: a whitelisted mechanical command from the application workflow.',
         enum: Object.keys(COURSE_STEPS) },
-      lesson: { type: 'string', description: 'Required for run-step lesson-commit: the L-* lesson ID.' },
+      lesson: { type: 'string', description: 'Required for lesson-commit and units-resolve; optional for teaching-resolve to select one saved L-* lesson. Knowledge IDs are taken from the saved indexes.' },
       summary: { type: 'string', description: 'Required for propose: the learner-facing summary of goal, complete material scope, and baseline.' },
       reason: { type: 'string', description: 'Required reason when pausing a running stage.' },
     },

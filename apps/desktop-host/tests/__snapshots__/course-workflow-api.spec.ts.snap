@@ -1,0 +1,227 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`course API directory selection > keeps an active stage running when the desktop merely inspects progress > teaching unit guide delivered to the writer 1`] = `
+{
+  "content": "# 教学单元与讲解深度
+
+在完成知识整理、学习路径与学科模板选择后阅读。知识记录 K 表示可追溯的内容身份；教学单元 TU 表示学生需要完成的学习任务；章 L 是学习进度与交付边界。三者无需一一对应。
+
+## 划分单元
+
+先写“学完能做什么”及判断标准，再把共同服务该目标的知识放在一个单元。适合合并的情况包括：一组规则共同支持一个操作、若干概念共同解释一个机制、多个证据共同支持一个判断。共享情境、推理链、例题与反馈只写一次。知识之间需要不同前提、独立方法或独立反馈时再分单元。按学习负担拆分，不按教材标题机械拆分。
+
+每个已分配 K 在本讲正式讲解位置恰好出现一次；其标题下保留该知识必要内容，公共推理可以放在单元主线中。回顾已讲内容用链接与短提示。一个复杂 K 需要跨单元正式教学时，先在知识整理层拆成真实子知识并维护来源，不能重复同一锚点。单元之间遵循知识依赖，同单元内部由作者安排推理顺序。
+
+## 选择深度
+
+| depth | 适用依据 | 应提供什么 | 何时停止 |
+|---|---|---|---|
+| \`reminder\` 提醒 | 有诊断、自测或既有学习记录支持已掌握 | 激活关键条件、典型误用与检索任务，链接必要回补材料 | 能独立检索并正确使用；若诊断失败，改计划为标准/深入后重新 prepare |
+| \`standard\` 标准 | 新内容，支撑当前学习目标 | 必要概念和条件、关键推理/操作、任务与反馈 | 学生具备完成目标的充分信息，新增解释没有新增判断依据 |
+| \`deep\` 深入 | 门槛概念、反直觉机制、推导或高代价误区 | 针对困难补齐推理断点，选择有区分度的反例、可视化或变式 | 难点可解释、可操作、可辨误，不继续堆同型例题 |
+| \`extension\` 拓展 | 超出当前必达目标但有明确用途 | 标明选学目的、前提、与主线关系，提供探索任务和反馈线索 | 达到所述拓展目的，不扩成另一门课程 |
+
+同章允许混用四档。不以知识标题或学科自动猜深度，不为整门课程复制“简版/详版”模板。深度决定支架选择，不允许省略必要条件、关键步骤或来源。提醒必须记录已有掌握证据；没有证据时按新内容处理。
+
+## 配置与解析
+
+新课程在 \`lesson_tasks.py prepare\` 前写 \`_工作区/教学单元.json\`。学科/活动/学习模式仍放在独立的 \`教学设计.json\`，两者组合使用。
+
+\`\`\`json
+{
+  "schema_version": 1,
+  "lessons": {
+    "L-01": {
+      "units": [{
+        "id": "TU-01",
+        "title": "选择并检查复数运算方法",
+        "knowledge_ids": ["K-01", "K-02"],
+        "depth": "standard",
+        "reason": "两种表示共同服务运算选择，学生尚未系统学习",
+        "goals": ["能选择表示完成运算并检查结果"],
+        "success_criteria": ["表示选择有依据，运算正确，能用另一表示检查"],
+        "expansion_triggers": ["无法说明表示选择时补充对比示例"],
+        "stop_when": ["必要步骤和检查方法已齐全，继续举例不再增加方法或辨误能力"]
+      }]
+    }
+  }
+}
+\`\`\`
+
+\`id\` 在本讲内稳定且唯一，格式 \`TU-...\`；\`title/knowledge_ids/depth/reason/goals/success_criteria/stop_when\` 必填。\`entry_evidence\` 在提醒档必填，其余档可选；\`expansion_triggers\` 可选。文本数组填写实际决策依据，不留空或重复项。解析器检查本讲 K 完整覆盖、无重复/外来 K、跨单元依赖顺序。
+
+运行 \`python scripts/teaching_units.py --course <课程目录> --lesson L-01\` 检查解析结果。配置不存在或该讲未配置时明确回退为旧的一 K 一 section，不伪称已优化。更新旧课程时先为要重写的讲设计单元，再 prepare；不自动改现有正文。TU 不新增图谱实体类型，K/L/EX/TEACH 的稳定身份保持不变。
+
+## 内容分工与停止规则
+
+- 章首说明路线、入口和必要诊断，不提前复述全章内容。
+- 单元承载首次学习：从问题到可用方法或可判断结论。九类教学功能按单元/章统筹，导入、类比、长推导、完整例题、误区表和变式均按需要触发，不在每个细知识上重复全套栏目。
+- 章末做综合选择、迁移和复习安排；已有单元任务可直接引用，不重新讲一遍。卡片负责检索、条件辨识、纠错和回补链接，不复制讲义。
+
+逐段判断新增价值：是否增加必要条件、推理步骤、操作方法、证据权衡、边界辨析或有效反馈？如果只是同义复述、空泛鼓励、反复宣布重要性，删除或合并。保留有目的的间隔检索、逐步撤除支架和跨情境迁移，并说明其不同任务。无需设字数或固定题数门槛，也不以短为质量本身。
+
+## 写作与回执
+
+显式单元的 section 包含整个知识集合。各 K 使用真实且唯一的标题，section.json 添加 \`knowledge_headings\`，例如 \`{"K-01":"代数表示","K-02":"几何表示"}\`；标题区间互不重叠。公共引导/推理放在单元标题下，练习放在与 K 标题同级的任务栏目下，保持 EX 与 TEACH 同级。作者只写正文，不写 BL 标记、块锚点或系统关系。
+
+result 的 \`exercises\` 可以指向单元、章首诊断或章末实际练习。每项登记预留 \`id\`、真实且全讲唯一的 \`heading\`、\`assesses\` 和该题内部的 \`feedback_heading\`；题目需有独立作答机会，反馈提供答案/判断标准及关键理由。bounded-v1 按 section 分配独占预留 ID，不得借用另一 section 的 ID；预留数量是容量，不是必须写满的题量。
+
+显式单元的 result 增加：
+
+\`\`\`json
+"unit_reviews": [{
+  "unit_id": "TU-01",
+  "goal_checks": [{
+    "goal": "能选择表示完成运算并检查结果",
+    "exercise_ids": ["EX-L01-001"],
+    "criterion": "表示选择、计算过程及检查均与题内反馈标准一致"
+  }],
+  "reasoning_check": "从条件到选择再到计算和检查的链条已完整；公共推理只出现一次",
+  "economy_check": "删除了重复导入，保留不同表示的检查以检验迁移",
+  "limitations": []
+}]
+\`\`\`
+
+每个单元的计划目标都要映射到实际登记且考核该单元知识的任务，可以共用一个综合任务，任务不要求每 K 各写若干题。\`criterion\` 应对应计划判断标准和题内反馈。\`limitations\` 记录未解决的教学/证据限制，无已知项时为空数组。复核说明写在回执，不展示给学生。
+
+机器检查配置、覆盖、标题区间、练习与反馈定位及目标映射。作者仍须检查内容正确、必要推理完整、任务确实检验目标、反馈可纠错、删减不破坏独立自学；结构通过不能证明学生已经掌握。未知学习起点、尚无学生验证等限制如实记录，不用“已验收”代替教学效果证据。
+",
+  "scriptsRoot": "<scriptsRoot>",
+  "section": "teaching-granularity",
+}
+`;
+
+exports[`course API directory selection > keeps an active stage running when the desktop merely inspects progress 1`] = `
+{
+  "guideResult": {
+    "available": [
+      "overview",
+      "intake",
+      "material-processing",
+      "image-first",
+      "worker-policy",
+      "knowledge-model",
+      "knowledge-store",
+      "knowledge-chapter-template",
+      "subject-routing",
+      "teaching-catalog",
+      "teaching-granularity",
+      "learning-path",
+      "learning-path-template",
+      "chapter-writing",
+      "lesson-pipeline",
+      "lesson-writing-policy",
+      "learning-chapter-template",
+      "core-cards",
+      "obsidian-links",
+      "core-card-template",
+      "quality-checks",
+      "delivery-layout",
+    ],
+    "scriptsRoot": "<scriptsRoot>",
+    "stage": "materials",
+  },
+  "parameters": {
+    "properties": {
+      "action": {
+        "enum": [
+          "inspect",
+          "guide",
+          "create-course",
+          "initialize",
+          "import-attachments",
+          "refresh-inventory",
+          "propose",
+          "confirm",
+          "change-model",
+          "start",
+          "prepare-transcription",
+          "probe",
+          "transcribe-batch",
+          "assemble-transcription",
+          "diagnose-transcription",
+          "run-step",
+          "complete-stage",
+          "pause",
+          "reconcile",
+          "resume",
+          "watchdog",
+        ],
+        "type": "string",
+      },
+      "course": {
+        "description": "Current Session course directory (.) or one direct child of its registered workspace. For create-course, a new direct-child name.",
+        "type": "string",
+      },
+      "lesson": {
+        "description": "Required for lesson-commit and units-resolve; optional for teaching-resolve to select one saved L-* lesson. Knowledge IDs are taken from the saved indexes.",
+        "type": "string",
+      },
+      "reason": {
+        "description": "Required reason when pausing a running stage.",
+        "type": "string",
+      },
+      "section": {
+        "description": "For guide: overview or a named stage reference/template. Omit to list available sections.",
+        "enum": [
+          "overview",
+          "intake",
+          "material-processing",
+          "image-first",
+          "worker-policy",
+          "knowledge-model",
+          "knowledge-store",
+          "knowledge-chapter-template",
+          "subject-routing",
+          "teaching-catalog",
+          "teaching-granularity",
+          "learning-path",
+          "learning-path-template",
+          "chapter-writing",
+          "lesson-pipeline",
+          "lesson-writing-policy",
+          "learning-chapter-template",
+          "core-cards",
+          "obsidian-links",
+          "core-card-template",
+          "quality-checks",
+          "delivery-layout",
+        ],
+        "type": "string",
+      },
+      "step": {
+        "description": "For run-step: a whitelisted mechanical command from the application workflow.",
+        "enum": [
+          "teaching-resolve",
+          "teaching-validate",
+          "units-resolve",
+          "units-validate",
+          "knowledge-assemble",
+          "knowledge-check",
+          "lesson-prepare",
+          "lesson-commit",
+          "lesson-status",
+          "lesson-check",
+          "cards-prepare",
+          "cards-lint",
+          "cards-finalize",
+          "links-rebuild",
+          "cards-check",
+          "final-check",
+          "package-preview",
+          "package",
+        ],
+        "type": "string",
+      },
+      "summary": {
+        "description": "Required for propose: the learner-facing summary of goal, complete material scope, and baseline.",
+        "type": "string",
+      },
+    },
+    "required": [
+      "action",
+    ],
+    "type": "object",
+  },
+}
+`;

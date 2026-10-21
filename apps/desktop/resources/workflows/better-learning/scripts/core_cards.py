@@ -77,12 +77,23 @@ def sha256_text(text):
 
 def inputs(course):
     lessons = read_json(course / '_工作区/章节索引.json')['lessons']
+    from teaching_design import resolve, fingerprint
+    knowledge = read_jsonl(course / '_工作区/知识索引.jsonl')
+    teaching = {l['id']: fingerprint(resolve(course, l['id'],
+                [k['id'] for k in knowledge if l['id'] in k.get('lesson_ids', []) and k.get('status') != 'merged']))
+                for l in lessons}
+    from teaching_units import resolve as resolve_units, fingerprint as units_fingerprint
+    units = {l['id']: units_fingerprint(resolve_units(course, l['id'],
+             [k for k in knowledge if l['id'] in k.get('lesson_ids', []) and k.get('status') != 'merged']))
+             for l in lessons}
     exercise_index = course / '_工作区/练习索引.jsonl'
     return {'lesson_hashes': {l['id']: semantic_hash(course, l['path']) for l in lessons},
             'knowledge_index_hash': sha256(course / '_工作区/知识索引.jsonl'),
             'knowledge_hash': semantic_hash(course, registry_document(course, '知识内容.md')),
             'exercise_index_hash': sha256(exercise_index) if exercise_index.exists() else None,
             'card_template': template_hash('card'), 'lesson_template': template_hash('lesson'),
+            'teaching_designs': teaching,
+            'teaching_units': units,
             'graph_policy_version': GRAPH_POLICY_VERSION}
 
 
@@ -169,8 +180,17 @@ def prepare(course):
 
     # --- 卡片间关系与引用清单：由已登记事实推导，写作者只能复制字面量 ---
     # 先把已分配的 KP ID 落盘，注册表才能为它们提供 canonical 落点与标签。
+    from teaching_design import resolve
+    designs = {l['id']: resolve(course, l['id'],
+               [k['id'] for k in knowledge if l['id'] in k.get('lesson_ids', []) and k.get('status') != 'merged'])
+               for l in read_json(course / '_工作区/章节索引.json')['lessons']}
+    from teaching_units import resolve as resolve_units
+    units = {l['id']: resolve_units(course, l['id'],
+             [k for k in knowledge if l['id'] in k.get('lesson_ids', []) and k.get('status') != 'merged'])
+             for l in lessons}
     write_json(course / '_工作区/核心卡片计划.json',
-               {'schema_version': 2, 'graph_policy_version': GRAPH_POLICY_VERSION, 'cards': plan})
+               {'schema_version': 2, 'graph_policy_version': GRAPH_POLICY_VERSION,
+                'teaching_designs': designs, 'teaching_units': units, 'cards': plan})
     entity_registry = Registry(course)
     card_of_concept = {entry['concept_key']: entry['card_id'] for entry in plan}
     card_of_knowledge = {kid: entry['card_id'] for entry in plan for kid in entry['knowledge_ids']}
@@ -220,7 +240,8 @@ def prepare(course):
     atomic_text(index_path, ''.join(json.dumps(k, ensure_ascii=False) + '\n' for k in knowledge))
     write_json(registry_path, registry)
     write_json(course / '_工作区/核心卡片计划.json',
-               {'schema_version': 2, 'graph_policy_version': GRAPH_POLICY_VERSION, 'cards': plan})
+               {'schema_version': 2, 'graph_policy_version': GRAPH_POLICY_VERSION,
+                'teaching_designs': designs, 'teaching_units': units, 'cards': plan})
     # Relations are derived, not patched into the knowledge file.
     from assemble_knowledge import rebuild_knowledge
     rebuild_knowledge(course)

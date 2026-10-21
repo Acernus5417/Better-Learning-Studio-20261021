@@ -156,11 +156,16 @@ export interface CourseProgressState {
   readonly fontWarnings?: number
 }
 
+/** Course status, including pending, unavailable and ambiguous course roots. */
 export type CourseProgressResult =
   | { readonly kind: 'waiting' | 'failed' | 'multiple' }
   | { readonly kind: 'ready'; readonly value: CourseProgressState }
 
-/** Read native workflow state when present, retaining legacy course progress for existing runs. */
+/**
+ * Read native workflow state when present, retaining legacy course progress for existing runs.
+ * @param remote - workspace file access scoped to the requesting Session.
+ * @returns A reader that resolves the course and its last saved progress.
+ */
 export function createCourseProgressReader(remote: ClientRemote): FilesInjected['readCourseProgress'] {
   return async (sessionId, root, signal) => {
     const readAt = async (prefix: string): Promise<CourseProgressResult | null> => {

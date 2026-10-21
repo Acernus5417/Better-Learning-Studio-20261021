@@ -65,6 +65,8 @@ dsh --profile web --no-open --port 8080
 
 每个浏览器会话选择一个随发行版交付的 preset（默认 `standard`）。Agent 预设设置页可更改默认项并编辑预设的子插件；保存结果持久化到 `$DSH_HOME/profiles/web/cordis.patch.yml`。只有 Host 提供可编辑的 profile 时，Creator 的插件管理工具才会启用。
 
+Studio 组合注册专用的 `better-learning` 预设并关闭 skill 加载；通过 `course_workflow` 读取应用内置的教学选择及选中资源。[桌面宿主](../../../apps/desktop-host/README.zh.md#teaching-templates)负责模板解析、校验与新鲜度检查。预设还会在讲义写作前规划[教学单元](../../../apps/desktop-host/README.zh.md#teaching-units)，消费单元目标、深度、复核依据与卡片输入。
+
 -----
 
 <a id="understand-the-implementation"></a>

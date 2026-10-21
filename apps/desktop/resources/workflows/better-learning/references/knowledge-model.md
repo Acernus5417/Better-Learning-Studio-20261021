@@ -6,6 +6,8 @@ v2 课程的 `_工作区/课程配置.json` 至少含：`link_mode: obsidian`、
 
 ## 提取层（脚本维护）
 
+教学选择独立保存在 `_工作区/教学设计.json`（schema_version: 1），不与来源提取状态或 `课程配置.json` 混用。格式、继承和学科 ID 见 [学科路由](subject-routing.md)。课程默认在知识整理时确定，L/K ID 建立后再补章级与知识小节覆盖。选择不能修改来源身份、覆盖范围或已核实事实。
+
 `_工作区/资料索引.json`：`sources` 列表，每项含 `id`、`path`、`name`、`sha256`、`size`、`format`。重新盘点需传入完整本次范围；同一路径保留 ID，变更内容更新哈希，不删除旧提取缓存。`资料清单.md` 是可读视图。
 
 提取版本放在 `_工作区/提取内容/SRC-ID/完整哈希/`。`定位映射.json` 包含 `source_id`、`source_hash`、`total_units`、`units`。每单元含 `id`（如 `U00001`）、`ordinal`、`locator`、`status`、`chunks`、`images`、`visual_review_required`、`warnings`。status 为 pending、extracted、needs_review 或 blocked。`chunks/images` 相对课程根目录。blocked 文件仍有一个阻塞单元，不会消失。

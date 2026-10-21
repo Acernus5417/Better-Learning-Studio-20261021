@@ -8,5 +8,5 @@ if not exist "%studioRoot%start-studio.ps1" (
     exit /b 1
 )
 
-start "" /D "%studioRoot%" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%studioRoot%start-studio.ps1" -SkipBuild
+start "" /D "%studioRoot%" "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%studioRoot%start-studio.ps1" -SkipBuild -ShowErrorDialog
 exit /b %errorlevel%

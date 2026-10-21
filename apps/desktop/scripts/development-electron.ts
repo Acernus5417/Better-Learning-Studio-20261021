@@ -57,7 +57,7 @@ export function prepareDevelopmentElectron(electron: string, iconPath: string, d
 
   const image = ResEdit.NtExecutable.from(readFileSync(electron), { ignoreCert: true })
   const resources = ResEdit.NtExecutableResource.from(image)
-  const icons = ResEdit.Data.IconFile.from(icon).icons.map(item => item.data)
+  const icons = ResEdit.Data.IconFile.from(icon).icons.map((item: { readonly data: object }) => item.data)
   const groups = ResEdit.Resource.IconGroupEntry.fromEntries(resources.entries)
   for (const group of groups.length === 0 ? [{ id: 1, lang: 1033 }] : groups) {
     ResEdit.Resource.IconGroupEntry.replaceIconsForResource(resources.entries, group.id, group.lang, icons)

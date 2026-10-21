@@ -23,7 +23,7 @@ export interface DesktopElectronBuilderConfig {
     { readonly from: string, readonly to: 'skills' },
     { readonly from: string, readonly to: 'icon.png' },
     { readonly from: string, readonly to: 'icon.svg' },
-    ...{ readonly from: string, readonly to: 'tray.ico' }[],
+    ...{ readonly from: string, readonly to: 'icon.ico' | 'tray.ico' }[],
   ]
   readonly mac: {
     readonly extendInfo: { readonly NSMicrophoneUsageDescription: string }
@@ -37,6 +37,7 @@ export interface DesktopElectronBuilderConfig {
     readonly writeUpdateInfo: boolean
   }
   readonly win: {
+    readonly icon: string
     readonly forceCodeSigning: boolean
     readonly signtoolOptions: {
       readonly publisherName: string | undefined

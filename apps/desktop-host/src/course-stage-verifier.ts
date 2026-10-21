@@ -52,7 +52,7 @@ function scriptEnvironment(): NodeJS.ProcessEnv {
 
 type CourseScript = 'convert_materials.py' | 'assemble_knowledge.py' | 'lesson_tasks.py'
   | 'core_cards.py' | 'obsidian_links.py' | 'validate_package.py' | 'inventory_materials.py'
-  | 'office_render_requirements.py'
+  | 'office_render_requirements.py' | 'studio_teaching_design.py' | 'studio_teaching_units.py'
 
 /** Run one application-owned mechanical command without exposing process credentials. */
 export async function runCourseScript(
@@ -183,11 +183,14 @@ async function verifyTranscription(
 }
 
 async function verifyKnowledge(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
+  if (!await accepted(runtime, course, 'studio_teaching_design.py', ['validate', '--require-config'])) return null
   if (!await accepted(runtime, course, 'assemble_knowledge.py', ['--check'])) return null
   return evidence(await shaFile(join(course, '知识内容.md')), '完整知识库已核验')
 }
 
-async function verifyPath(course: string): Promise<CourseStageEvidence | null> {
+async function verifyPath(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
+  if (!await accepted(runtime, course, 'studio_teaching_design.py', ['validate', '--require-config'])) return null
+  if (!await accepted(runtime, course, 'studio_teaching_units.py', ['validate'])) return null
   const path = await readFile(join(course, '学习路径.md'), 'utf8')
   const index = await json(join(course, '_工作区', '路径索引.json'))
   const chapterIndex = await json(join(course, '_工作区', '章节索引.json'))
@@ -252,13 +255,13 @@ export function createCourseStageVerifier(runtime: CourseVerifierRuntime): Cours
         if (await verifyKnowledge(runtime, course) === null) return null
       }
       if (stage === 'lessons' || stage === 'cards') {
-        if (await verifyPath(course) === null) return null
+        if (await verifyPath(runtime, course) === null) return null
       }
       if (stage === 'cards' && await verifyLessons(runtime, course) === null) return null
       switch (stage) {
         case 'transcription': return await verifyTranscription(runtime, course, model)
         case 'knowledge': return await verifyKnowledge(runtime, course)
-        case 'path': return await verifyPath(course)
+        case 'path': return await verifyPath(runtime, course)
         case 'lessons': return await verifyLessons(runtime, course)
         case 'cards': return await verifyCards(runtime, course)
         case 'delivery': return await verifyDelivery(runtime, course)

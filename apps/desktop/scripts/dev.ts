@@ -11,7 +11,7 @@ import { developmentRuntimeDirectory, resolveDesktopBuildTarget } from './deskto
 import { prepareDevelopmentProject } from './development-project.ts'
 import { prepareDevelopmentApp } from './development-app.ts'
 import { prepareDevelopmentElectron } from './development-electron.ts'
-import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
+import { prepareDevelopmentPrimaryRuntime } from './development-primary-runtime.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
     release,
     target: resolveDesktopBuildTarget(),
   })
-  await preparePrimaryRuntime()
+  await prepareDevelopmentPrimaryRuntime()
   await launchElectron()
 }
 

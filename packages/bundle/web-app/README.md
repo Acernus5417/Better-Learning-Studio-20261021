@@ -65,6 +65,8 @@ When you launch `dsh --profile web` over SSH, the URL line still prints but the 
 
 Each browser session selects a shipped preset (`standard` by default). The Agent presets settings page changes the default and edits preset child plugins; saves persist in `$DSH_HOME/profiles/web/cordis.patch.yml`. Creator's plugin-management tool is enabled only when the Host provides an editable profile.
 
+The Studio composition registers the dedicated `better-learning` preset with skill loading disabled. It reads application-owned teaching choices and selected resources through `course_workflow`; [Desktop Host](../../../apps/desktop-host/README.md#teaching-templates) owns template resolution, validation and freshness checks. The preset also plans [teaching units](../../../apps/desktop-host/README.md#teaching-units) before lesson writing and consumes unit goals, depth, review evidence and card inputs.
+
 -----
 
 <a id="understand-the-implementation"></a>

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "subjects": {
+    "generic": {"label": "通用回退", "path": "assets/templates/subjects/generic.md"},
+    "mathematics": {"label": "数学与形式科学", "path": "assets/templates/subjects/mathematics.md"},
+    "physics": {"label": "物理与天文", "path": "assets/templates/subjects/physics.md"},
+    "chemistry": {"label": "化学与材料化学", "path": "assets/templates/subjects/chemistry.md"},
+    "life-science": {"label": "生命科学与生物技术", "path": "assets/templates/subjects/life-science.md"},
+    "earth-science": {"label": "地球、地理与环境科学", "path": "assets/templates/subjects/earth-science.md"},
+    "engineering": {"label": "工程与技术", "path": "assets/templates/subjects/engineering.md"},
+    "computing": {"label": "计算机、软件与信息系统", "path": "assets/templates/subjects/computing.md"},
+    "statistics": {"label": "统计、数据科学与研究测量", "path": "assets/templates/subjects/statistics.md"},
+    "economics": {"label": "经济学与经济政策", "path": "assets/templates/subjects/economics.md"},
+    "business": {"label": "管理、商科、会计与公共管理", "path": "assets/templates/subjects/business.md"},
+    "law": {"label": "法学与规范适用", "path": "assets/templates/subjects/law.md"},
+    "medicine": {"label": "医学、护理、药学与公共卫生", "path": "assets/templates/subjects/medicine.md"},
+    "psychology": {"label": "心理学与行为科学", "path": "assets/templates/subjects/psychology.md"},
+    "sociology": {"label": "社会学、政治学与社会研究", "path": "assets/templates/subjects/sociology.md"},
+    "history": {"label": "历史、考古与区域史", "path": "assets/templates/subjects/history.md"},
+    "philosophy": {"label": "哲学、伦理与思想论证", "path": "assets/templates/subjects/philosophy.md"},
+    "literature": {"label": "文学、文本与文化阐释", "path": "assets/templates/subjects/literature.md"},
+    "languages": {"label": "语言学习、语言学与翻译", "path": "assets/templates/subjects/languages.md"},
+    "education": {"label": "教育学、教学与学习设计", "path": "assets/templates/subjects/education.md"},
+    "arts": {"label": "艺术、设计与创作", "path": "assets/templates/subjects/arts.md"},
+    "sports": {"label": "体育、运动与动作技能", "path": "assets/templates/subjects/sports.md"},
+    "agriculture": {"label": "农林、动物与食品科学", "path": "assets/templates/subjects/agriculture.md"}
+  },
+  "modules": {
+    "proof": {"label": "证明与形式论证", "path": "assets/templates/modules/proof.md"},
+    "quantitative": {"label": "定量计算与建模", "path": "assets/templates/modules/quantitative.md"},
+    "lab": {"label": "实验、观测与田野操作", "path": "assets/templates/modules/lab.md"},
+    "code": {"label": "编程与调试", "path": "assets/templates/modules/code.md"},
+    "data-analysis": {"label": "数据分析与证据推断", "path": "assets/templates/modules/data-analysis.md"},
+    "case-decision": {"label": "案例分析与决策", "path": "assets/templates/modules/case-decision.md"},
+    "text-evidence": {"label": "文本、史料与文献分析", "path": "assets/templates/modules/text-evidence.md"},
+    "performance": {"label": "表达、操作与技能表现", "path": "assets/templates/modules/performance.md"},
+    "design-project": {"label": "设计、创作与综合项目", "path": "assets/templates/modules/design-project.md"}
+  },
+  "modes": {
+    "understanding": {"label": "系统理解", "path": "assets/templates/modes/understanding.md"},
+    "exam": {"label": "考核准备", "path": "assets/templates/modes/exam.md"},
+    "practice": {"label": "实践与产出", "path": "assets/templates/modes/practice.md"},
+    "research": {"label": "研究与证据评价", "path": "assets/templates/modes/research.md"}
+  }
+}

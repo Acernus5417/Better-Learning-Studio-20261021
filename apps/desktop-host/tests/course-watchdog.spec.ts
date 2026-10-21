@@ -7,14 +7,15 @@ describe('Host course watchdog', () => {
   it('checks on child settlement immediately and flags silence without changing attempts', async () => {
     vi.useFakeTimers()
     const published: CourseWatchdogStatus[] = []
-    const attempts = [{ attemptId: 'A-1', childId: 'child-1', hostState: 'running' as const, lastActivityAt: 0 }]
+    const attempt = { attemptId: 'A-1', childId: 'child-1', hostState: 'running' as const, lastActivityAt: 0 }
+    const attempts = [attempt]
     const inspect = vi.fn(async () => ({ active: attempts, readyUnits: 2 }))
-    const watchdog = new CourseWatchdog(inspect, status => { published.push(status) }, 90_000, 900_000, () => Date.now())
+    const watchdog = new CourseWatchdog(inspect, (status) => { published.push(status) }, 90_000, 900_000, () => Date.now())
     try {
       expect((await watchdog.start()).activeCount).toBe(1)
       await vi.advanceTimersByTimeAsync(990_001)
       expect(published.at(-1)?.silentAttemptIds).toEqual(['A-1'])
-      attempts[0].lastActivityAt = Date.now()
+      attempt.lastActivityAt = Date.now()
       expect((await watchdog.memberSettled()).silentAttemptIds).toEqual([])
       expect(attempts).toEqual([{ attemptId: 'A-1', childId: 'child-1', hostState: 'running', lastActivityAt: Date.now() }])
     } finally { await watchdog.stop() }
@@ -32,7 +33,7 @@ describe('Host course watchdog', () => {
     vi.useFakeTimers()
     let release: (() => void) | undefined
     const inspect = vi.fn(async () => {
-      await new Promise<void>(resolve => { release = resolve })
+      await new Promise<void>((resolve) => { release = resolve })
       return { active: [], readyUnits: 0 }
     })
     const watchdog = new CourseWatchdog(inspect, () => undefined, 100, 900_000)
