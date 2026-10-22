@@ -119,7 +119,7 @@ describe('course visual child activation', () => {
     await expect(run.result).rejects.toBe(captureError)
   })
 
-  it('masks global host tools only for the visual presets', () => {
+  it('retains each visual preset filesystem allowlist without restricting the root agent', () => {
     let created: ((payload: { agent: object }) => void) | undefined
     const ctx = { on: (_name: string, handler: typeof created) => { created = handler } }
     installCourseVisualChildPolicy(ctx as never)
@@ -130,8 +130,8 @@ describe('course visual child activation', () => {
       } } })
     }
     expect(restrictions).toEqual([
-      { preset: 'better-learning-vision', filter: { allow: [] } },
-      { preset: 'better-learning-probe', filter: { allow: [] } },
+      { preset: 'better-learning-vision', filter: { allow: ['read', 'read_image', 'write', 'edit'] } },
+      { preset: 'better-learning-probe', filter: { allow: ['read_image', 'write'] } },
     ])
   })
 })

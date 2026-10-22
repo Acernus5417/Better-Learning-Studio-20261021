@@ -8,14 +8,16 @@ import { parentAgentOptionsForDelegation, type SubagentActivation } from '@deeps
 export type CourseVisualPreset = 'better-learning-vision' | 'better-learning-probe'
 
 /**
- * Keep global host tools out of the visual presets; their scoped filesystem tools remain visible.
+ * Retain only each visual preset's filesystem tools and exclude inherited Host tools.
  * @param ctx - Desktop Host context owning the creation listener.
  */
 export function installCourseVisualChildPolicy(ctx: Context): void {
   ctx.on('agent/created', ({ agent }) => {
     const preset = agent.session.header.agentPreset
-    if (preset === 'better-learning-vision' || preset === 'better-learning-probe') {
-      agent.ctx.tools.restrict({ allow: [] })
+    if (preset === 'better-learning-vision') {
+      agent.ctx.tools.restrict({ allow: ['read', 'read_image', 'write', 'edit'] })
+    } else if (preset === 'better-learning-probe') {
+      agent.ctx.tools.restrict({ allow: ['read_image', 'write'] })
     }
   })
 }

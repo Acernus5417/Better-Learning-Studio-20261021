@@ -3,6 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createUserMessage, LlmAdapter } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { installCourseWorkflowApi } from '../../desktop-host/src/course-workflow-api.ts'
 import { launchWebScaffold, type WebScaffold } from './scaffold.ts'
 
 class StudioRequestAdapter extends LlmAdapter {
@@ -26,6 +29,10 @@ describe('web e2e: Studio model request', { retry: 0 }, () => {
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold()
+    await installCourseWorkflowApi(scaffold.ctx,
+      join(scaffold.harnessHome, 'runtime-source'), join(scaffold.harnessHome, 'runtime-install'),
+      fileURLToPath(new URL('../../desktop/resources/workflows/better-learning/scripts', import.meta.url)),
+      { intervalMs: 90_000, silentMs: 900_000 })
     scaffold.ctx.effect(() => scaffold.ctx.llm.registerAdapter(['studio-prompt-test'], adapter))
   }, 120_000)
 
@@ -41,6 +48,10 @@ describe('web e2e: Studio model request', { retry: 0 }, () => {
         setup: agentCtx => scaffold.ctx.agentPresets.mount(agentCtx, preset).then(() => undefined),
       })
       try {
+        const tools = scaffold.ctx.tools.schemas(handle.agent).map(tool => tool.name).sort()
+        if (preset === 'better-learning-vision') expect(tools).toEqual(['edit', 'read', 'read_image', 'write'])
+        else if (preset === 'better-learning-probe') expect(tools).toEqual(['read_image', 'write'])
+        else expect(tools).toEqual(expect.arrayContaining(['course_workflow', 'read', 'write', 'edit']))
         handle.agent.followup(createUserMessage({
           content: [{ type: 'text', text: 'Reply briefly without using tools.' }], source: { kind: 'user' },
         }))
