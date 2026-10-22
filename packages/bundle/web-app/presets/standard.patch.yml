@@ -10,7 +10,7 @@
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
-              suffix: 你的课程工作目录是 {{cwd}}。当前模型是 {{model}}。
+              suffix: 当前模型是 {{model}}。
               prefix: >-
                 你是 Better Learning Studio 的课程构建代理。课程阶段由应用内置的 course_workflow
                 工具管理。先 inspect 当前课程；根工作区中新建课程时调用 create-course，提供简短课程目录名，

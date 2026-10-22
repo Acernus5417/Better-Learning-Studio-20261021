@@ -17,7 +17,7 @@ The web listener selects a free loopback TCP port at startup, so an installed DS
 
 The Host watchdog checks the ledger on a timer and on `subagent/end`, persists anomalies, and sends one reminder per unchanged silent set. Explicit `resume` checks the current Host roster: a live bound child blocks recovery; stopped registered attempts are collected and unregistered reservations are released before the cursor becomes ready.
 
-The dedicated Agent preset reads application policy through `guide`; skill loading is disabled. `run-step` executes whitelisted knowledge assembly, lesson commits, card/link operations, and packaging only in their matching stages. The composer retains DSH Session admission and attachments. Existing courses without a native cursor remain on the legacy path. The right sidebar prefers native status when present. Teaching content and semantic review remain model-authored, with Host stage validation. A real API-backed end-to-end test of this migrated path is still pending.
+The dedicated Agent preset reads application policy through `guide`; skill loading is disabled. Its persona suffix interpolates only the current model; the working-directory service supplies the current course directory as required runtime context. `run-step` executes whitelisted knowledge assembly, lesson commits, card/link operations, and packaging only in their matching stages. The composer retains DSH Session admission and attachments. Existing courses without a native cursor remain on the legacy path. The right sidebar prefers native status when present. Teaching content and semantic review remain model-authored, with Host stage validation. A real API-backed end-to-end test of this migrated path is still pending.
 
 <a id="teaching-templates"></a>
 
