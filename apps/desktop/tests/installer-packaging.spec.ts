@@ -1,5 +1,6 @@
 import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { Arch, Platform } from 'electron-builder'
 import { Packager } from 'app-builder-lib'
 import { describe, expect, it, vi } from 'vitest'
@@ -37,6 +38,11 @@ describe('installer preparation preserves application dependencies', () => {
     try {
       const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
       const config = createElectronBuilderConfig(env, platform, 'x64')
+      expect(config.protocols).toEqual([{ name: 'Better Learning Studio', schemes: ['betterlearning'] }])
+      const workflows = config.extraResources.find(resource => resource.to === 'workflows')
+      expect(workflows).toBeDefined()
+      expect(readFileSync(join(workflows!.from, 'better-learning', 'runtime-policy.md')))
+        .toEqual(readFileSync(new URL('../resources/workflows/better-learning/runtime-policy.md', import.meta.url)))
       const aboutIcon = config.extraResources.find(resource => resource.to === 'icon.png')
       expect(aboutIcon).toBeDefined()
       expect(readFileSync(aboutIcon!.from)).toEqual(readFileSync(new URL('../resources/icon-windows.png', import.meta.url)))
@@ -52,6 +58,8 @@ describe('installer preparation preserves application dependencies', () => {
         expect(config.win.icon).toBe(appIcon!.from)
         expect(readFileSync(appIcon!.from)).toEqual(readFileSync(new URL('../resources/icon-windows.ico', import.meta.url)))
       } else {
+        expect(config.mac.extendInfo.CFBundleLocalizations).toEqual(['en', 'zh_CN'])
+        expect(config.mac.extendInfo.NSMicrophoneUsageDescription).toContain('Better Learning Studio')
         expect(trayIcon).toBeUndefined()
         expect(config.extraResources.some(resource => resource.to === 'icon.ico')).toBe(false)
       }

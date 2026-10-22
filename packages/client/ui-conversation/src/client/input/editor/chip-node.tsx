@@ -38,6 +38,7 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
   __appearance: ReferenceInsert['appearance']
   /** Clipboard / persistence projection, e.g. `/name` (never the model form). */
   __clipboardText: string
+  /** Localized removal action for a pending attachment reference. */
   __removeLabel: string | undefined
   /** Owner-resolution failure flag: chip renders invalid; serialization must fail. */
   __invalid: boolean
@@ -187,6 +188,11 @@ export class ReferenceChipNode extends DecoratorNode<JSX.Element> {
   /** Optional domain glyph. */
   getAppearance(): ReferenceInsert['appearance'] {
     return this.getLatest().__appearance
+  }
+
+  /** @returns the localized removal action, or undefined for a reference without a remove control. */
+  getRemoveLabel(): string | undefined {
+    return this.getLatest().__removeLabel
   }
 
   /** React face rendered into the host element by the decorator portal. */

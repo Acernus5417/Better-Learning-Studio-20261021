@@ -23,7 +23,7 @@ describe('native vision probe', () => {
       },
       async (_parent, prompt) => {
         childPrompt = prompt
-        return { id: 'real-child-id', result: Promise.resolve({ stopReason: 'completed' }),
+        return { childId: 'real-child-id', result: Promise.resolve({ stopReason: 'completed' }),
           dispose: async () => { disposed = true } } as never
       },
     )

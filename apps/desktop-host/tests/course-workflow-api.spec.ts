@@ -82,7 +82,7 @@ describe('course API directory selection', () => {
       snapshotEvents: () => events,
     } }
     const agents = { list: () => [agent], roots: () => [agent], get: () => agent, currentInitiator: () => agent }
-    const subagents = { start: () => { throw new Error('unexpected visual child start') } }
+    const subagents = { startActivation: () => { throw new Error('unexpected visual child start') } }
     const tools = { register: (definition: ToolDefinition) => { courseTool = definition; return () => undefined } }
     const sessionProjections = { stateOf: () => ({ openTurnStartSeq: 0 }) }
     const attachments = { readFileStream: () => { throw new Error('unexpected attachment read') } }

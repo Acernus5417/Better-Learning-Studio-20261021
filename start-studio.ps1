@@ -50,10 +50,13 @@ try {
     }
     Set-Location -LiteralPath $studioRoot
     Invoke-StudioCommand $studioNode @('scripts/ensure-electron.mjs')
-    if ($SkipBuild) { Invoke-StudioCommand $studioNode @('--import=tsx', 'apps/desktop/scripts/dev.ts', '--skip-build') }
-    else {
+    $studioScript = if ($SkipBuild) { 'start:desktop' } else { 'dev:desktop' }
+    $studioLocalPnpm = Join-Path $studioRoot 'apps/desktop/node_modules/pnpm/bin/pnpm.mjs'
+    if (Test-Path -LiteralPath $studioLocalPnpm -PathType Leaf) {
+        Invoke-StudioCommand $studioNode @($studioLocalPnpm, 'run', $studioScript)
+    } else {
         $studioPnpm = (Get-Command pnpm.cmd -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-        Invoke-StudioCommand $studioPnpm @('run', 'dev:desktop')
+        Invoke-StudioCommand $studioPnpm @('run', $studioScript)
     }
     exit 0
 } catch {
