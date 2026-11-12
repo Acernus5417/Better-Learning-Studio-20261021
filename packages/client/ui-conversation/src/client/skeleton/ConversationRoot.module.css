@@ -263,10 +263,7 @@ button.crumb:hover {
   /* Concrete overflow content establishes z-index 1, while the sticky
      composer remains above both layers. */
   z-index: 0;
-  width: min(
-    10px,
-    calc((100% - var(--dsh-chat-content-width)) / 2 - 24px - 24px)
-  );
+  width: min(10px, calc((100% - var(--dsh-chat-content-width)) / 2 - 24px - 24px));
   cursor: col-resize;
 }
 
@@ -556,4 +553,36 @@ button.crumb:hover {
 .root[data-phase='settling'] .composerSeat,
 .embeddedBody[data-content-phase='settling'] .composerSeat {
   visibility: hidden;
+}
+
+/* Studio keeps the input in a separate, stable footer. Expanding a process row
+   changes only the transcript's scroll range, never the input's containing box. */
+.body[data-docked-composer] {
+  overflow: hidden;
+}
+.body[data-docked-composer] .scrollBody {
+  --dsh-composer-height: 0px;
+}
+.body[data-docked-composer] > .composerSeat {
+  position: relative;
+  bottom: auto;
+  flex: none;
+  z-index: 7;
+  margin-right: calc(2px + var(--dsh-scrollbar-width, 8px));
+  background: var(--dsw-alias-bg-base);
+}
+.body[data-docked-composer] .widthHandle {
+  bottom: var(--dsh-composer-height, 0px);
+}
+.body[data-docked-composer][data-content-phase='hero'] {
+  justify-content: center;
+}
+.body[data-docked-composer][data-content-phase='hero'] > .scrollBody {
+  flex: 0;
+}
+
+:global(html[data-studio-markdown]) :global([data-composer-input]) {
+  font-family: var(--dsw-font-family);
+  font-size: calc(var(--dsh-content-font-size, 14px) + 2px);
+  line-height: 1.8;
 }

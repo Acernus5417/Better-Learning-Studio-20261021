@@ -426,6 +426,7 @@ beforeEach(() => {
   vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3')
   vi.stubEnv('BLS_STUDIO', undefined)
   vi.stubEnv('BLS_WORKFLOW_ROOT', undefined)
+  vi.stubEnv('BLS_STUDY_SKILLS_ROOT', undefined)
   harness.analyticsEnabled = true
 })
 
@@ -445,7 +446,7 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
-  it.each([true, false])('preserves the Studio environment and workflow root for the Host (packaged=%s)', async (packaged) => {
+  it.each([true, false])('passes Studio resource roots to the Host (packaged=%s)', async (packaged) => {
     harness.app.isPackaged = packaged
     vi.stubEnv('DSH_HOME', undefined)
     await readyForUpdate()
@@ -455,6 +456,9 @@ describe('desktop main startup', () => {
     expect(environment.BLS_WORKFLOW_ROOT).toBe(packaged
       ? join('desktop-test-resources', 'workflows', 'better-learning')
       : join(import.meta.dirname, '..', 'resources', 'workflows', 'better-learning'))
+    expect(environment.BLS_STUDY_SKILLS_ROOT).toBe(packaged
+      ? join('desktop-test-resources', 'skills')
+      : join(import.meta.dirname, '..', 'resources', 'skills'))
   })
 
   it('keeps a custom data home and opens Studio without requiring account onboarding', async () => {

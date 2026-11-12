@@ -5,7 +5,12 @@ import { ok } from '@deepseek-ai/dsh-remote-mock'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import type {
-  AccountBonusBatch, AccountBonusOrderId, AccountDetails, AccountUserId, AccountView, SignInAttemptId,
+  AccountBonusBatch,
+  AccountBonusOrderId,
+  AccountDetails,
+  AccountUserId,
+  AccountView,
+  SignInAttemptId,
 } from '@deepseek-ai/dsh-deepseek-account/types'
 import type { QuotaNoticeOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
@@ -21,23 +26,30 @@ import { AccountPlatformHost } from '../src/client/AccountPlatformHost.tsx'
 import type { AccountPlatformHostInjected } from '../src/client/AccountPlatformHost.tsx'
 import { AccountQuotaNotice } from '../src/client/AccountQuotaNotice.tsx'
 import type { AccountQuotaNoticeInjected } from '../src/client/AccountQuotaNotice.tsx'
-import { AccountPlaceholder } from '../src/client/AccountPlaceholder.tsx'
 
 const it = createClientTest({ roster: webApp })
 const SELF = '@deepseek-ai/dsh-client-ui-settings-account'
 const view: AccountView = {
-  status: 'signed-out', attempt: null,
+  status: 'signed-out',
+  attempt: null,
   links: { usageUrl: 'https://platform.deepseek.com/usage', topUpUrl: 'https://platform.deepseek.com/top_up' },
 }
 const stored: AccountView = { ...view, status: 'credential-stored' }
-const profile: AccountDetails['profile'] = { status: 'ready', value: { id: 'account-user' as AccountUserId, name: 'User', contact: null } }
+const profile: AccountDetails['profile'] = {
+  status: 'ready',
+  value: { id: 'account-user' as AccountUserId, name: 'User', contact: null },
+}
 /** @param orderId - server order. @param message - server copy. @returns one unnotified bonus for this account. */
 function bonus(orderId: string, message = 'Awarded 5.00'): AccountBonusBatch {
   return {
     accountId: 'account-user' as AccountUserId,
-    bonuses: [{
-      orderId: orderId as AccountBonusOrderId, expiresAt: '2099-01-01T00:00:00Z', message,
-    }],
+    bonuses: [
+      {
+        orderId: orderId as AccountBonusOrderId,
+        expiresAt: '2099-01-01T00:00:00Z',
+        message,
+      },
+    ],
   }
 }
 function operations(c: TestClient): AccountSectionInjected {
@@ -62,17 +74,20 @@ beforeEach(() => {
   vi.stubGlobal('screen', { width: 1512, height: 982 })
   vi.stubGlobal('devicePixelRatio', 2)
 })
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+})
 
-it('keeps Studio account settings as a placeholder without starting sign-in or account subscriptions', async ({ start }) => {
+it('omits unfinished account UI in Studio without starting sign-in or account subscriptions', async ({ start }) => {
   vi.stubGlobal('dshDesktop', {})
   vi.stubGlobal('__BLS_STUDIO__', true)
   const c = await start()
   for (const reload of [false, true]) {
     if (reload) await c.reload(SELF)
     const account = c.ctx.slots.entries('settings.section').find(entry => entry.options.id === 'account')
-    expect(account?.component).toBe(AccountPlaceholder)
-    expect(resolveSlotLabel(account!.options.label)).toBe('Account')
+    expect(account).toBeUndefined()
     expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(0)
     expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(0)
     expect(quotaNoticeEntry(c)).toBeUndefined()
@@ -81,7 +96,9 @@ it('keeps Studio account settings as a placeholder without starting sign-in or a
   }
 }, 60_000)
 
-it('registers account sign-in in a plain browser without the Desktop-only surfaces, including after reload', async ({ start }) => {
+it('registers account sign-in in a plain browser without the Desktop-only surfaces, including after reload', async ({
+  start,
+}) => {
   const c = await start()
   for (const reload of [false, true]) {
     if (reload) await c.reload(SELF)
@@ -102,14 +119,22 @@ it('claims account balance notices from the frame-wide quota chain and declines 
   expect(entry).toBeDefined()
   const select = entry!.select! as (owner: QuotaNoticeOwnerProps) => QuotaNoticeOwnerProps | null
   const notice: QuotaNoticeOwnerProps = {
-    code: 'ACCOUNT_QUOTA', message: 'Request quota exhausted.', dismiss: vi.fn(), keepOpen: vi.fn(() => () => {}),
+    code: 'ACCOUNT_QUOTA',
+    message: 'Request quota exhausted.',
+    dismiss: vi.fn(),
+    keepOpen: vi.fn(() => () => {}),
   }
   expect(select(notice)).toBe(notice)
   expect(select({ ...notice, code: 'QUOTA' })).toBeNull()
 }, 60_000)
 
-it('shares account actions across seats, publishes dialog ownership, and opens contextual support', async ({ start }) => {
-  vi.stubGlobal(CONTACT_CONFIG_GLOBAL, { contactFormUrl: 'https://example.test/form/?prefill_device_model=old&hide_device_model=1', contactSource: 'harness' })
+it('shares account actions across seats, publishes dialog ownership, and opens contextual support', async ({
+  start,
+}) => {
+  vi.stubGlobal(CONTACT_CONFIG_GLOBAL, {
+    contactFormUrl: 'https://example.test/form/?prefill_device_model=old&hide_device_model=1',
+    contactSource: 'harness',
+  })
   const open = vi.spyOn(window, 'open').mockReturnValue(null)
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
@@ -142,7 +167,9 @@ it('shares account actions across seats, publishes dialog ownership, and opens c
   expect(signedOut.searchParams.get('hide_uid')).toBe('1')
   c.mock.remote.account.getProfile.mockResolvedValue(ok(profile))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile)
+  })
   const entry = c.ctx.slots.entries('settings.section').find(entry => entry.options.id === 'account')!
   expect(entry.inject!()).toBe(actions)
   expect(resolveSlotLabel(entry.options.label)).toBe('Account')
@@ -162,7 +189,9 @@ it('shares account actions across seats, publishes dialog ownership, and opens c
   }
   expect(support.searchParams.has('prefill_app_version')).toBe(false)
   c.mock.streams.push('account/watch', view)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(view) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(view)
+  })
   actions.contactUs()
   const signedOutAgain = new URL(String(open.mock.calls.at(-1)![0]))
   expect(signedOutAgain.searchParams.has('prefill_uid')).toBe(false)
@@ -178,28 +207,38 @@ it('prefills the native device description from the Desktop bridge on every clic
   const c = await start()
   const actions = operations(c)
   actions.contactUs()
-  await vi.waitFor(() => { expect(open).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(open).toHaveBeenCalledOnce()
+  })
   const first = new URL(String(open.mock.calls.at(-1)![0]))
-  expect(first.searchParams.get('prefill_device_info'))
-    .toBe('platform=darwin; os=15.0; app_arch=arm64; cpu=Apple M3; memory_gib=16.0; screen_resolution=3024x1964')
+  expect(first.searchParams.get('prefill_device_info')).toBe(
+    'platform=darwin; os=15.0; app_arch=arm64; cpu=Apple M3; memory_gib=16.0; screen_resolution=3024x1964',
+  )
   expect(first.searchParams.get('hide_device_info')).toBe('1')
   deviceInfo.mockResolvedValue('platform=win32; os=10.0; app_arch=x64; memory_gib=32.0')
   vi.stubGlobal('screen', { width: 1920, height: 1080 })
   vi.stubGlobal('devicePixelRatio', 1)
   actions.contactUs()
-  await vi.waitFor(() => { expect(open).toHaveBeenCalledTimes(2) })
-  expect(new URL(String(open.mock.calls.at(-1)![0])).searchParams.get('prefill_device_info'))
-    .toBe('platform=win32; os=10.0; app_arch=x64; memory_gib=32.0; screen_resolution=1920x1080')
+  await vi.waitFor(() => {
+    expect(open).toHaveBeenCalledTimes(2)
+  })
+  expect(new URL(String(open.mock.calls.at(-1)![0])).searchParams.get('prefill_device_info')).toBe(
+    'platform=win32; os=10.0; app_arch=x64; memory_gib=32.0; screen_resolution=1920x1080',
+  )
   expect(deviceInfo).toHaveBeenCalledTimes(2)
 }, 60_000)
 
 it('opens the questionnaire with screen resolution when the native read fails', async ({ start }) => {
   const open = vi.spyOn(window, 'open').mockReturnValue(null)
-  const deviceInfo = vi.fn(async (): Promise<string> => { throw new Error('platform ipc unavailable') })
+  const deviceInfo = vi.fn(async (): Promise<string> => {
+    throw new Error('platform ipc unavailable')
+  })
   vi.stubGlobal('dshDesktop', { deviceInfo })
   const c = await start()
   operations(c).contactUs()
-  await vi.waitFor(() => { expect(open).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(open).toHaveBeenCalledOnce()
+  })
   const url = new URL(String(open.mock.calls.at(-1)![0]))
   expect(url.searchParams.get('prefill_device_info')).toBe('screen_resolution=3024x1964')
   expect(url.searchParams.get('hide_device_info')).toBe('1')
@@ -215,12 +254,18 @@ it('reports the account sampled by the click when a native read outlasts a sign-
   const actions = operations(c)
   c.mock.remote.account.getProfile.mockResolvedValue(ok(profile))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile)
+  })
   actions.contactUs()
   c.mock.streams.push('account/watch', view)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(view) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(view)
+  })
   device.resolve('platform=darwin; os=15.0; app_arch=arm64; memory_gib=16.0')
-  await vi.waitFor(() => { expect(open).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(open).toHaveBeenCalledOnce()
+  })
   expect(new URL(String(open.mock.calls.at(-1)![0])).searchParams.get('prefill_uid')).toBe('account-user')
 }, 60_000)
 
@@ -234,11 +279,19 @@ it('publishes one avatar load and retries it through the shared Settings refresh
   const c = await start()
   const actions = operations(c)
   const picture: AccountDetails['profile'] = {
-    status: 'ready', value: { id: 'account-user' as AccountUserId, name: 'User', contact: null, avatarUrl: 'https://example.test/avatar.png' },
+    status: 'ready',
+    value: {
+      id: 'account-user' as AccountUserId,
+      name: 'User',
+      contact: null,
+      avatarUrl: 'https://example.test/avatar.png',
+    },
   }
   c.mock.remote.account.getProfile.mockResolvedValue(ok(picture))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(images).toHaveLength(1) })
+  await vi.waitFor(() => {
+    expect(images).toHaveLength(1)
+  })
   images[0]!.dispatchEvent(new Event('error'))
   expect(actions.hooks.account.getSnapshot().avatar?.status).toBe('failed')
   await actions.refreshAccount()
@@ -261,7 +314,9 @@ it('publishes one avatar load and retries it through the shared Settings refresh
   actions.avatarFailed(ready)
   expect(actions.hooks.account.getSnapshot().avatar).toBe(successor)
   c.mock.streams.push('account/watch', view)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(view) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(view)
+  })
   expect(actions.hooks.account.getSnapshot().avatar).toBeUndefined()
   expect(images[3]!.getAttribute('src')).toBeNull()
 }, 60_000)
@@ -277,7 +332,9 @@ it('keeps successful account refreshes silent and reports only failed reads', as
   c.mock.remote.account.getProfile.mockResolvedValue(ok(profile))
   c.mock.remote.account.getBalance.mockResolvedValue(ok({ status: 'ready', value: [], bonusWallets: [] }))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile)
+  })
   await actions.refreshAccount()
   for (const spy of [output, info, log]) {
     expect(spy.mock.calls.filter(call => String(call[0]).startsWith('[deepseek-account]'))).toEqual([])
@@ -285,30 +342,49 @@ it('keeps successful account refreshes silent and reports only failed reads', as
   c.mock.remote.account.getProfile.mockResolvedValueOnce(ok({ status: 'failed' }))
   c.mock.remote.account.getBalance.mockRejectedValueOnce(new Error('private-transport-detail'))
   await actions.refreshAccount()
-  expect(output).toHaveBeenCalledWith('[deepseek-account] account read failed', expect.objectContaining({
-    field: 'profile',
-  }))
-  expect(output).toHaveBeenCalledWith('[deepseek-account] account read failed', expect.objectContaining({
-    field: 'balance',
-  }))
+  expect(output).toHaveBeenCalledWith(
+    '[deepseek-account] account read failed',
+    expect.objectContaining({
+      field: 'profile',
+    }),
+  )
+  expect(output).toHaveBeenCalledWith(
+    '[deepseek-account] account read failed',
+    expect.objectContaining({
+      field: 'balance',
+    }),
+  )
   expect(JSON.stringify(output.mock.calls)).not.toContain('private-transport-detail')
-  c.mock.remote.account.getBalance.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'private-rpc-detail', {}) })
+  c.mock.remote.account.getBalance.mockResolvedValueOnce({
+    ok: false,
+    error: new RemoteError('gateway/internal', 'private-rpc-detail', {}),
+  })
   await actions.refreshAccount()
-  expect(output).toHaveBeenCalledWith('[deepseek-account] account read failed', expect.objectContaining({
-    field: 'balance',
-  }))
+  expect(output).toHaveBeenCalledWith(
+    '[deepseek-account] account read failed',
+    expect.objectContaining({
+      field: 'balance',
+    }),
+  )
   expect(JSON.stringify(output.mock.calls)).not.toContain('private-rpc-detail')
 }, 60_000)
 
-it('coalesces refreshes, publishes independent failures, and rejects stale responses after sign-out or unload', async ({ start }) => {
+it('coalesces refreshes, publishes independent failures, and rejects stale responses after sign-out or unload', async ({
+  start,
+}) => {
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   const actions = operations(c)
   const pending = Promise.withResolvers<ReturnType<typeof ok<AccountDetails['profile'] | null>>>()
   c.mock.remote.account.getProfile.mockReturnValueOnce(pending.promise)
-  c.mock.remote.account.getBalance.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
+  c.mock.remote.account.getBalance.mockResolvedValueOnce({
+    ok: false,
+    error: new RemoteError('gateway/internal', 'offline', {}),
+  })
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce()
+  })
   // Two concurrent account refreshes share the one in-flight request, so the
   // second call adds no second read of the profile or the balance.
   const a = actions.refreshAccount()
@@ -316,14 +392,24 @@ it('coalesces refreshes, publishes independent failures, and rejects stale respo
   expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce()
   expect(c.mock.remote.account.getBalance).toHaveBeenCalledOnce()
   c.mock.streams.push('account/watch', view)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(view) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(view)
+  })
   pending.resolve(ok(profile))
   await Promise.all([a, concurrently])
   expect(actions.hooks.account.getSnapshot().details).toBeUndefined()
-  c.mock.remote.account.getProfile.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
+  c.mock.remote.account.getProfile.mockResolvedValueOnce({
+    ok: false,
+    error: new RemoteError('gateway/internal', 'offline', {}),
+  })
   c.mock.remote.account.getBalance.mockRejectedValueOnce(new Error('offline'))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().details).toEqual({ profile: { status: 'failed' }, balance: { status: 'failed' } }) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().details).toEqual({
+      profile: { status: 'failed' },
+      balance: { status: 'failed' },
+    })
+  })
   const pendingAgain = Promise.withResolvers<ReturnType<typeof ok<AccountDetails['profile'] | null>>>()
   c.mock.remote.account.getProfile.mockReturnValueOnce(pendingAgain.promise)
   const request = actions.refreshAccount()
@@ -333,44 +419,62 @@ it('coalesces refreshes, publishes independent failures, and rejects stale respo
   expect(actions.hooks.account.getSnapshot().details?.profile).toEqual({ status: 'failed' })
 }, 60_000)
 
-for (const desktop of [false, true]) it(`uses the browser or Desktop login carrier (Desktop: ${desktop}) and exposes operation errors`, async ({ start, mock }) => {
-  const open = vi.spyOn(window, 'open').mockReturnValue(null)
-  if (desktop) vi.stubGlobal('dshDesktop', {})
-  const c = await start()
-  const actions = operations(c)
-  mock.remote.account.startSignIn.mockResolvedValue(ok(view))
-  await actions.start()
-  expect(mock.remote.account.startSignIn).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en', version: '0.0.0-test' }),
-    window.location.origin, desktop ? 'desktop' : 'web')
-  // Only a plain browser preopens the authorization tab during the click.
-  expect(open).toHaveBeenCalledTimes(desktop ? 0 : 1)
-  const failure = { ok: false as const, error: new RemoteError('gateway/internal', 'offline', {}) }
-  mock.remote.account.startSignIn.mockResolvedValueOnce(failure)
-  await expect(actions.start()).rejects.toThrow('account start failed')
-  expect(actions.hooks.account.getSnapshot()).toMatchObject({ loginVisible: true, loginFailed: true })
-  const id = 'cancel-me' as SignInAttemptId
-  mock.remote.account.cancelSignIn.mockResolvedValueOnce(ok(view)).mockResolvedValueOnce(failure)
-  await actions.cancel(id)
-  await expect(actions.cancel(id)).rejects.toThrow('account cancel failed')
-  mock.remote.account.signOut.mockResolvedValueOnce(ok(view)).mockResolvedValueOnce(failure)
-  await actions.signOut()
-  // The launcher renders nothing, so the refused Remote call reaches the caller unchanged.
-  await expect(actions.signOut()).rejects.toBe(failure.error)
-}, 60_000)
+for (const desktop of [false, true])
+  it(`uses the browser or Desktop login carrier (Desktop: ${desktop}) and exposes operation errors`, async ({
+    start,
+    mock,
+  }) => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    if (desktop) vi.stubGlobal('dshDesktop', {})
+    const c = await start()
+    const actions = operations(c)
+    mock.remote.account.startSignIn.mockResolvedValue(ok(view))
+    await actions.start()
+    expect(mock.remote.account.startSignIn).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: 'en', version: '0.0.0-test' }),
+      window.location.origin,
+      desktop ? 'desktop' : 'web',
+    )
+    // Only a plain browser preopens the authorization tab during the click.
+    expect(open).toHaveBeenCalledTimes(desktop ? 0 : 1)
+    const failure = { ok: false as const, error: new RemoteError('gateway/internal', 'offline', {}) }
+    mock.remote.account.startSignIn.mockResolvedValueOnce(failure)
+    await expect(actions.start()).rejects.toThrow('account start failed')
+    expect(actions.hooks.account.getSnapshot()).toMatchObject({ loginVisible: true, loginFailed: true })
+    const id = 'cancel-me' as SignInAttemptId
+    mock.remote.account.cancelSignIn.mockResolvedValueOnce(ok(view)).mockResolvedValueOnce(failure)
+    await actions.cancel(id)
+    await expect(actions.cancel(id)).rejects.toThrow('account cancel failed')
+    mock.remote.account.signOut.mockResolvedValueOnce(ok(view)).mockResolvedValueOnce(failure)
+    await actions.signOut()
+    // The launcher renders nothing, so the refused Remote call reaches the caller unchanged.
+    await expect(actions.signOut()).rejects.toBe(failure.error)
+  }, 60_000)
 
 it('navigates the preopened browser tab to the themed authorization page', async ({ start, mock }) => {
   const replace = vi.fn()
-  const popup: Pick<Window, 'closed' | 'close' | 'opener'> & { location: Pick<Location, 'replace'> } = { closed: false, close: vi.fn(), opener: window, location: { replace } }
+  const popup: Pick<Window, 'closed' | 'close' | 'opener'> & { location: Pick<Location, 'replace'> } = {
+    closed: false,
+    close: vi.fn(),
+    opener: window,
+    location: { replace },
+  }
   // jsdom opens no real tab; the UI only touches these members of the preopened window.
   vi.spyOn(window, 'open').mockReturnValue(popup as Window)
   const c = await start()
   const actions = operations(c)
-  const attempt = { id: 'attempt' as SignInAttemptId, phase: 'waiting-browser' as const, authorizeUrl: 'https://platform.deepseek.com/dsh/authorize' }
+  const attempt = {
+    id: 'attempt' as SignInAttemptId,
+    phase: 'waiting-browser' as const,
+    authorizeUrl: 'https://platform.deepseek.com/dsh/authorize',
+  }
   mock.remote.account.startSignIn.mockResolvedValue(ok({ ...view, attempt: { id: attempt.id, phase: 'initializing' } }))
   await actions.start()
   c.mock.streams.push('account/watch', { ...view, attempt })
   const theme = (c.ctx.get('theme') as ThemeRuntime).getTheme().active.colorScheme
-  await vi.waitFor(() => { expect(replace).toHaveBeenCalledExactlyOnceWith(`${attempt.authorizeUrl}?theme=${theme}`) })
+  await vi.waitFor(() => {
+    expect(replace).toHaveBeenCalledExactlyOnceWith(`${attempt.authorizeUrl}?theme=${theme}`)
+  })
 }, 60_000)
 
 it('uses the Desktop stream origin and exposes the native platform bridge', async ({ start, mock }) => {
@@ -404,11 +508,17 @@ it('uses the Desktop stream origin and exposes the native platform bridge', asyn
   expect(owner).toHaveBeenCalledExactlyOnceWith('returned')
   mock.remote.account.startSignIn.mockResolvedValue(ok(view))
   await actions.start()
-  expect(mock.remote.account.startSignIn).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en' }), 'http://localhost:9876', 'desktop')
+  expect(mock.remote.account.startSignIn).toHaveBeenCalledWith(
+    expect.objectContaining({ locale: 'en' }),
+    'http://localhost:9876',
+    'desktop',
+  )
 }, 60_000)
 
-
-it('re-reads the account when the shared host returns from top-up, and not from usage or an absent page', async ({ start, mock }) => {
+it('re-reads the account when the shared host returns from top-up, and not from usage or an absent page', async ({
+  start,
+  mock,
+}) => {
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   vi.stubGlobal('dshPlatform', { open: vi.fn(), setBounds: vi.fn(), close: vi.fn() })
@@ -417,12 +527,18 @@ it('re-reads the account when the shared host returns from top-up, and not from 
   const host = injectedOf(platformHostEntry(c)!) as AccountPlatformHostInjected
   c.mock.remote.account.getProfile.mockResolvedValue(ok(profile))
   c.mock.remote.account.getBalance.mockResolvedValue(ok(null))
-  c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok({ accountId: 'account-user' as AccountUserId, bonuses: [] }))
+  c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(
+    ok({ accountId: 'account-user' as AccountUserId, bonuses: [] }),
+  )
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(stored) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(stored)
+  })
   // The account becoming active already ran one shared refresh; measure only the
   // reads each return triggers from here.
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalled() })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalled()
+  })
   await c.flush()
   c.mock.remote.account.getUnnotifiedBonuses.mockClear()
   c.mock.remote.account.getProfile.mockClear()
@@ -442,11 +558,15 @@ it('re-reads the account when the shared host returns from top-up, and not from 
   // shared refresh: the wallet reads and the unnotified-bonus read.
   actions.openPlatformPage!('top-up', vi.fn())
   host.closePage()
-  await vi.waitFor(() => { expect(mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledOnce()
+  })
   expect(mock.remote.account.getProfile).toHaveBeenCalledOnce()
 }, 60_000)
 
-it('re-reads profile and balance but no bonus for the onboarding recharge return, and nothing on supersede or release', async ({ start }) => {
+it('re-reads profile and balance but no bonus for the onboarding recharge return, and nothing on supersede or release', async ({
+  start,
+}) => {
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   vi.stubGlobal('dshPlatform', { open: vi.fn(), setBounds: vi.fn(), close: vi.fn() })
@@ -455,17 +575,24 @@ it('re-reads profile and balance but no bonus for the onboarding recharge return
   const track = vi.fn()
   c.ctx.provide('productAnalytics', { track } as never)
   expect(actions).not.toHaveProperty('track')
-  const onboarding = injectedOf(c.ctx.slots.entries('shell.overlay')
-    .find(entry => entry.options.id === 'desktop-onboarding')!) as DesktopOnboardingInjected
+  const onboarding = injectedOf(
+    c.ctx.slots.entries('shell.overlay').find(entry => entry.options.id === 'desktop-onboarding')!,
+  ) as DesktopOnboardingInjected
   onboarding.track?.('onboarding_page_view', { page_name: 'onboarding_recharge' })
   expect(track).toHaveBeenCalledWith('onboarding_page_view', { page_name: 'onboarding_recharge' })
   const host = injectedOf(platformHostEntry(c)!) as AccountPlatformHostInjected
   c.mock.remote.account.getProfile.mockResolvedValue(ok(profile))
   c.mock.remote.account.getBalance.mockResolvedValue(ok(null))
-  c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok({ accountId: 'account-user' as AccountUserId, bonuses: [] }))
+  c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(
+    ok({ accountId: 'account-user' as AccountUserId, bonuses: [] }),
+  )
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(stored) })
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalled() })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(stored)
+  })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalled()
+  })
   await c.flush()
   const bonusesBefore = c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length
   // The account becoming active already ran the shared refresh; measure only the
@@ -489,8 +616,12 @@ it('re-reads profile and balance but no bonus for the onboarding recharge return
   // unseen award must not be acknowledged behind the onboarding surface.
   onboarding.openPlatformPage!('top-up', () => {})
   host.closePage()
-  await vi.waitFor(() => { expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce() })
-  await vi.waitFor(() => { expect(c.mock.remote.account.getBalance).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce()
+  })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getBalance).toHaveBeenCalledOnce()
+  })
   await c.flush()
   expect(c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length).toBe(bonusesBefore)
 }, 60_000)
@@ -503,8 +634,12 @@ it('waits for an in-flight pre-return read before the post-top-up read', async (
   const actions = operations(c)
   const host = injectedOf(platformHostEntry(c)!) as AccountPlatformHostInjected
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(stored) })
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalled() })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(stored)
+  })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalled()
+  })
   await c.flush()
   c.mock.remote.account.getProfile.mockClear()
   c.mock.remote.account.getBalance.mockClear()
@@ -513,7 +648,9 @@ it('waits for an in-flight pre-return read before the post-top-up read', async (
   c.mock.remote.account.getBalance.mockReturnValueOnce(pending.promise)
   try {
     c.mock.streams.push('account/watch', stored)
-    await vi.waitFor(() => { expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce() })
+    await vi.waitFor(() => {
+      expect(c.mock.remote.account.getProfile).toHaveBeenCalledOnce()
+    })
     // The baseline includes the frame's own notice read, which is not the return read.
     const bonusesBeforeReturn = c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length
 
@@ -525,16 +662,24 @@ it('waits for an in-flight pre-return read before the post-top-up read', async (
     expect(c.mock.remote.account.getBalance).toHaveBeenCalledOnce()
 
     pending.resolve(ok(null))
-    await vi.waitFor(() => { expect(c.mock.remote.account.getProfile).toHaveBeenCalledTimes(2) })
-    await vi.waitFor(() => { expect(c.mock.remote.account.getBalance).toHaveBeenCalledTimes(2) })
-    await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length).toBeGreaterThan(bonusesBeforeReturn) })
+    await vi.waitFor(() => {
+      expect(c.mock.remote.account.getProfile).toHaveBeenCalledTimes(2)
+    })
+    await vi.waitFor(() => {
+      expect(c.mock.remote.account.getBalance).toHaveBeenCalledTimes(2)
+    })
+    await vi.waitFor(() => {
+      expect(c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length).toBeGreaterThan(bonusesBeforeReturn)
+    })
   } finally {
     // A failed assertion above must not strand the read the host is awaiting.
     pending.resolve(ok(null))
   }
 }, 60_000)
 
-it('reads the unnotified bonus in the active locale and acknowledges only after the card renders', async ({ start }) => {
+it('reads the unnotified bonus in the active locale and acknowledges only after the card renders', async ({
+  start,
+}) => {
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   const actions = operations(c)
@@ -550,7 +695,11 @@ it('reads the unnotified bonus in the active locale and acknowledges only after 
   expect(c.mock.remote.account.ackBonusNotified).not.toHaveBeenCalled()
   actions.bonusNoticeShown(orderId as AccountBonusOrderId)
   await vi.waitFor(() => {
-    expect(c.mock.remote.account.ackBonusNotified).toHaveBeenCalledWith('account-user', orderId, expect.objectContaining({ locale: 'en' }))
+    expect(c.mock.remote.account.ackBonusNotified).toHaveBeenCalledWith(
+      'account-user',
+      orderId,
+      expect.objectContaining({ locale: 'en' }),
+    )
   })
   actions.bonusNoticeDismissed(orderId as AccountBonusOrderId)
   expect(actions.hooks.account.getSnapshot().notices?.[0]).toBeUndefined()
@@ -563,21 +712,35 @@ it('keeps the notice and its acknowledgement retry across repeated signed-in fra
   const actions = operations(c)
   const orderId = '4c1b0000-0000-4000-8000-000000000000'
   c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok(bonus(orderId)))
-  c.mock.remote.account.ackBonusNotified.mockResolvedValue({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
+  c.mock.remote.account.ackBonusNotified.mockResolvedValue({
+    ok: false,
+    error: new RemoteError('gateway/internal', 'offline', {}),
+  })
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().notices?.[0]).toMatchObject({ orderId }) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().notices?.[0]).toMatchObject({ orderId })
+  })
   actions.bonusNoticeShown(orderId as AccountBonusOrderId)
-  await vi.waitFor(() => { expect(c.mock.remote.account.ackBonusNotified.mock.calls.length).toBeGreaterThan(0) })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.ackBonusNotified.mock.calls.length).toBeGreaterThan(0)
+  })
   // One sign-in commits the credential and then updates the attempt; a reconnected
   // stream replays the same signed-in state. None of them is a new account.
   c.mock.streams.push('account/watch', stored)
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(stored) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(stored)
+  })
   // The displayed card stays, no second read replaces it, and the failed
   // acknowledgement keeps backing off instead of stopping until sign-out.
   expect(actions.hooks.account.getSnapshot().notices?.[0]).toMatchObject({ orderId })
   expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledOnce()
-  await vi.waitFor(() => { expect(c.mock.remote.account.ackBonusNotified.mock.calls.length).toBeGreaterThan(1) }, { timeout: 30_000 })
+  await vi.waitFor(
+    () => {
+      expect(c.mock.remote.account.ackBonusNotified.mock.calls.length).toBeGreaterThan(1)
+    },
+    { timeout: 30_000 },
+  )
 }, 60_000)
 
 it('keeps the notice absent when the bonus read is refused, then shows the next read', async ({ start }) => {
@@ -586,10 +749,13 @@ it('keeps the notice absent when the bonus read is refused, then shows the next 
   const actions = operations(c)
   const orderId = '4c1b0000-0000-4000-8000-000000000000'
   c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValueOnce({
-    ok: false, error: new RemoteError('gateway/internal', 'offline', {}),
+    ok: false,
+    error: new RemoteError('gateway/internal', 'offline', {}),
   })
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledOnce() })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledOnce()
+  })
   expect(actions.hooks.account.getSnapshot().notices?.[0]).toBeUndefined()
   expect(c.mock.remote.account.ackBonusNotified).not.toHaveBeenCalled()
   c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok(bonus(orderId)))
@@ -609,11 +775,15 @@ it('drops the previous account notice and stops reading after sign-out', async (
     expect(actions.hooks.account.getSnapshot().notices?.[0]?.message).toBe('Awarded 5.00')
   })
   c.mock.streams.push('account/watch', view)
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(view) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().view).toEqual(view)
+  })
   expect(actions.hooks.account.getSnapshot().notices?.[0]).toBeUndefined()
   // Signing out ends the lifecycle, so no further read follows.
   const reads = c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length
-  await new Promise((resolve) => { setTimeout(resolve, 20) })
+  await new Promise((resolve) => {
+    setTimeout(resolve, 20)
+  })
   expect(c.mock.remote.account.getUnnotifiedBonuses.mock.calls.length).toBe(reads)
 }, 60_000)
 
@@ -622,14 +792,20 @@ it('refreshes balances and the bonus read on one Settings entry, without polling
   const c = await start()
   const actions = operations(c)
   const balance: AccountDetails['balance'] = {
-    status: 'ready', value: [{ currency: 'CNY', balance: '12.34' }], bonusWallets: [{ currency: 'CNY', balance: '5.00' }],
+    status: 'ready',
+    value: [{ currency: 'CNY', balance: '12.34' }],
+    bonusWallets: [{ currency: 'CNY', balance: '5.00' }],
   }
   c.mock.remote.account.getBalance.mockResolvedValue(ok(balance))
   c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok(null))
   c.mock.streams.push('account/watch', stored)
   // Signing in reads once; nothing else reads on a timer.
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1) })
-  await new Promise((resolve) => { setTimeout(resolve, 20) })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1)
+  })
+  await new Promise((resolve) => {
+    setTimeout(resolve, 20)
+  })
   expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1)
   // Signing in already read the wallet once through the details refresh.
   const balances = c.mock.remote.account.getBalance.mock.calls.length
@@ -644,10 +820,15 @@ it('publishes a failed balance from a Settings entry without dropping the bonus 
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   const actions = operations(c)
-  c.mock.remote.account.getBalance.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
+  c.mock.remote.account.getBalance.mockResolvedValueOnce({
+    ok: false,
+    error: new RemoteError('gateway/internal', 'offline', {}),
+  })
   c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok(null))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1) })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1)
+  })
   await actions.refreshAccount()
   expect(actions.hooks.account.getSnapshot().details?.balance).toEqual({ status: 'failed' })
   // The bonus read still ran: a failed wallet read does not cancel it.
@@ -660,7 +841,9 @@ it('publishes a terminal state-stream failure without mistaking it for plugin di
   const actions = operations(c)
   await c.mock.streams.opened('account/watch', 1)
   c.mock.streams.end('account/watch')
-  await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().failed).toBe(true) })
+  await vi.waitFor(() => {
+    expect(actions.hooks.account.getSnapshot().failed).toBe(true)
+  })
 }, 60_000)
 
 it('ignores a terminal stream error when plugin disposal already owns teardown', async ({ start }) => {
@@ -670,7 +853,13 @@ it('ignores a terminal stream error when plugin disposal already owns teardown',
   const original = c.ctx.remote.$stream.bind(c.ctx.remote)
   const spy = vi.spyOn(c.ctx.remote, '$stream').mockImplementation((options) => {
     const stream = original(options)
-    stream.signal.addEventListener('abort', () => { disposal = c.unload(SELF) }, { once: true })
+    stream.signal.addEventListener(
+      'abort',
+      () => {
+        disposal = c.unload(SELF)
+      },
+      { once: true },
+    )
     return stream
   })
   await c.reload(SELF)
@@ -678,7 +867,9 @@ it('ignores a terminal stream error when plugin disposal already owns teardown',
   const actions = operations(c)
   await c.mock.streams.opened('account/watch', 2)
   c.mock.streams.end('account/watch')
-  await vi.waitFor(() => { expect(disposal).toBeDefined() })
+  await vi.waitFor(() => {
+    expect(disposal).toBeDefined()
+  })
   await disposal
   expect(actions.hooks.account.getSnapshot().failed).toBe(false)
 }, 60_000)
@@ -690,15 +881,21 @@ it('samples the build version, language, and UTC offset for every account call',
   const offset = vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(480)
   c.mock.remote.account.getUnnotifiedBonuses.mockResolvedValue(ok(null))
   c.mock.streams.push('account/watch', stored)
-  await vi.waitFor(() => { expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1) })
+  await vi.waitFor(() => {
+    expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenCalledTimes(1)
+  })
   expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenLastCalledWith({
-    version: '0.0.0-test', locale: 'en', timezoneOffsetSeconds: -28_800,
+    version: '0.0.0-test',
+    locale: 'en',
+    timezoneOffsetSeconds: -28_800,
   })
   // The next call reads the zone again instead of reusing the first sample.
   offset.mockReturnValue(-300)
   await actions.refreshAccount()
   expect(c.mock.remote.account.getUnnotifiedBonuses).toHaveBeenLastCalledWith({
-    version: '0.0.0-test', locale: 'en', timezoneOffsetSeconds: 18_000,
+    version: '0.0.0-test',
+    locale: 'en',
+    timezoneOffsetSeconds: 18_000,
   })
 }, 60_000)
 
@@ -708,10 +905,12 @@ it('reads the account task impact and reports a refused query', async ({ start, 
   const actions = operations(c)
   mock.remote.account.hasRunningAccountTasks.mockResolvedValueOnce(ok(true))
   expect(await actions.hasRunningAccountTasks()).toBe(true)
-  mock.remote.account.hasRunningAccountTasks.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'offline', {}) })
+  mock.remote.account.hasRunningAccountTasks.mockResolvedValueOnce({
+    ok: false,
+    error: new RemoteError('gateway/internal', 'offline', {}),
+  })
   await expect(actions.hasRunningAccountTasks()).rejects.toThrow('account task query failed')
 }, 60_000)
-
 
 it('forwards live account notices and removes their subscriptions', async ({ start }) => {
   vi.stubGlobal('dshDesktop', {})
@@ -736,44 +935,68 @@ it('forwards live account notices and removes their subscriptions', async ({ sta
   expect(expired).toHaveBeenCalledOnce()
   expect(unavailable).toHaveBeenCalledOnce()
 })
-for (const native of [false, true]) it(`exposes desktop progress actions and disposes its subscriptions (native platform: ${native})`, async ({ start, mock }) => {
-  vi.stubGlobal('dshDesktop', {})
-  const platform = { open: vi.fn(), setBounds: vi.fn(), close: vi.fn() }
-  if (native) vi.stubGlobal('dshPlatform', platform)
-  const c = await start()
-  const entry = c.ctx.slots.entries('shell.overlay').find(entry => entry.options.id === 'desktop-onboarding')!
-  const injected = (entry.inject!() as object) as DesktopOnboardingInjected
-  expect(injected.hooks.account.getSnapshot().desktopOnboardingVisible).toBe(true)
-  injected.setVisible(false)
-  expect(injected.hooks.account.getSnapshot().desktopOnboardingVisible).toBe(false)
-  const revealed = injected.hooks.account.getSnapshot()
-  injected.setVisible(false)
-  expect(injected.hooks.account.getSnapshot()).toBe(revealed)
-  // Onboarding requests the shared native page through the one host; it holds no
-  // bridge of its own.
-  if (native) expect(injected.openPlatformPage).toBeDefined()
-  else expect(injected.openPlatformPage).toBeUndefined()
-  expect(await injected.update({ step: 'credit' })).toBe(false)
-  expect(await injected.complete('skipped')).toBe(false)
-  expect(await injected.retry()).toBe(false)
-  expect(injected.hooks.onboarding.getSnapshot().visible).toBe(false)
-  await c.unload(SELF)
-  expect(c.ctx.slots.entries('shell.overlay').some(entry => entry.options.id === 'desktop-onboarding')).toBe(false)
-  expect(mock.remote.account.getBalance).not.toHaveBeenCalled()
-}, 60_000)
+for (const native of [false, true])
+  it(`exposes desktop progress actions and disposes its subscriptions (native platform: ${native})`, async ({
+    start,
+    mock,
+  }) => {
+    vi.stubGlobal('dshDesktop', {})
+    const platform = { open: vi.fn(), setBounds: vi.fn(), close: vi.fn() }
+    if (native) vi.stubGlobal('dshPlatform', platform)
+    const c = await start()
+    const entry = c.ctx.slots.entries('shell.overlay').find(entry => entry.options.id === 'desktop-onboarding')!
+    const injected = entry.inject!() as object as DesktopOnboardingInjected
+    expect(injected.hooks.account.getSnapshot().desktopOnboardingVisible).toBe(true)
+    injected.setVisible(false)
+    expect(injected.hooks.account.getSnapshot().desktopOnboardingVisible).toBe(false)
+    const revealed = injected.hooks.account.getSnapshot()
+    injected.setVisible(false)
+    expect(injected.hooks.account.getSnapshot()).toBe(revealed)
+    // Onboarding requests the shared native page through the one host; it holds no
+    // bridge of its own.
+    if (native) expect(injected.openPlatformPage).toBeDefined()
+    else expect(injected.openPlatformPage).toBeUndefined()
+    expect(await injected.update({ step: 'credit' })).toBe(false)
+    expect(await injected.complete('skipped')).toBe(false)
+    expect(await injected.retry()).toBe(false)
+    expect(injected.hooks.onboarding.getSnapshot().visible).toBe(false)
+    await c.unload(SELF)
+    expect(c.ctx.slots.entries('shell.overlay').some(entry => entry.options.id === 'desktop-onboarding')).toBe(false)
+    expect(mock.remote.account.getBalance).not.toHaveBeenCalled()
+  }, 60_000)
 
 it('applies API-key defaults through the desktop slot and shared configuration owners', async ({ start, mock }) => {
   vi.stubGlobal('dshDesktop', {})
   const values: Record<string, object> = {
-    'ui-settings-account': { version: 1, step: 'welcome', purpose: null, process: null, completion: null, usage: 'compact', developerTools: false },
+    'ui-settings-account': {
+      version: 1,
+      step: 'welcome',
+      purpose: null,
+      process: null,
+      completion: null,
+      usage: 'compact',
+      developerTools: false,
+    },
     'ui-chat': { transcriptView: 'compact', performanceUsage: 'detailed', linkOpening: 'sidebar' },
     'ui-settings': { enabled: false },
   }
   const schemas = { 'ui-settings-account': OnboardingConfig, 'ui-chat': ChatConfig, 'ui-settings': SettingsConfig }
-  const namespace = (ns: keyof typeof schemas) => ({ ns, autoGenerate: false, schema: JSON.parse(JSON.stringify(schemas[ns].toJSON())) as JsonValue, value: values[ns] as JsonValue, applies: 'live' as const, secrets: [], revision: 0 })
-  mock.remote.settings.describe.mockResolvedValue(ok({
-    writable: true, hasDocument: true, namespaces: Object.keys(schemas).map(ns => namespace(ns as keyof typeof schemas)),
-  }))
+  const namespace = (ns: keyof typeof schemas) => ({
+    ns,
+    autoGenerate: false,
+    schema: JSON.parse(JSON.stringify(schemas[ns].toJSON())) as JsonValue,
+    value: values[ns] as JsonValue,
+    applies: 'live' as const,
+    secrets: [],
+    revision: 0,
+  })
+  mock.remote.settings.describe.mockResolvedValue(
+    ok({
+      writable: true,
+      hasDocument: true,
+      namespaces: Object.keys(schemas).map(ns => namespace(ns as keyof typeof schemas)),
+    }),
+  )
   const hasApiKey = vi.fn(async () => true)
   vi.stubGlobal('dshOnboarding', { hasApiKey })
   mock.remote.settings.mutate.mockImplementation(async (ns, ops) => {
@@ -784,8 +1007,11 @@ it('applies API-key defaults through the desktop slot and shared configuration o
     return ok(namespace(key))
   })
   const c = await start()
-  const injected = c.ctx.slots.entries('shell.overlay').find(entry => entry.options.id === 'desktop-onboarding')!.inject!() as object as DesktopOnboardingInjected
-  await vi.waitFor(() => { expect(injected.hooks.onboarding.getSnapshot().progress.step).toBe('done') })
+  const injected = c.ctx.slots.entries('shell.overlay').find(entry => entry.options.id === 'desktop-onboarding')!
+    .inject!() as object as DesktopOnboardingInjected
+  await vi.waitFor(() => {
+    expect(injected.hooks.onboarding.getSnapshot().progress.step).toBe('done')
+  })
   expect(hasApiKey).toHaveBeenCalled()
   expect(values['ui-settings']).toEqual({ enabled: true })
   expect(values['ui-chat']).toMatchObject({ transcriptView: 'standard' })

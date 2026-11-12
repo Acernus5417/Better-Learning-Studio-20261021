@@ -16,6 +16,7 @@ import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
 import { installCourseWorkflowApi } from './course-workflow-api.ts'
+import { installCourseLibraryApi } from './course-library-api.ts'
 import { desktopWebPort } from './desktop-web-port.ts'
 
 function positiveMilliseconds(name: string, fallback: number): number {
@@ -108,6 +109,8 @@ async function main(): Promise<void> {
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
   const workflowRoot = process.env.BLS_WORKFLOW_ROOT
+  const courseRoot = process.env.BLS_COURSE_ROOT
+  if (courseRoot !== undefined) await installCourseLibraryApi(ctx, courseRoot)
   if (workflowRoot !== undefined) {
     const source = process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime')
     await installCourseWorkflowApi(ctx, source,

@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ported course graph > hides orphan and self-only files by default, retaining real incoming and outgoing neighbors 1`] = `
+{
+  "nodes": {
+    "file/A.md": {
+      "color": null,
+      "links": {
+        "file/B.md": true,
+      },
+      "type": "",
+    },
+    "file/B.md": {
+      "color": null,
+      "links": {},
+      "type": "",
+    },
+  },
+  "weights": null,
+}
+`;

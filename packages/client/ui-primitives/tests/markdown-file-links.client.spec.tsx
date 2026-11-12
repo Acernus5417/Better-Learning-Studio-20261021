@@ -15,6 +15,10 @@ describe('Markdown file links', () => {
     ['C:%5Cwork%5Cfile.ts', 'C:\\work\\file.ts', undefined],
     ['docs/%E4%B8%AD%E6%96%87.md', 'docs/中文.md', undefined],
     ['file%23name%3F.txt', 'file#name?.txt', undefined],
+    ['docs/课程.md#%E5%AD%A6%E4%B9%A0%E7%9B%AE%E6%A0%87', 'docs/课程.md', { anchor: '学习目标' }],
+    ['docs/lesson.md#^key-01', 'docs/lesson.md', { anchor: '^key-01' }],
+    ['file:///C:/course/My%20Notes.md#L3', 'C:/course/My Notes.md', { line: 3 }],
+    ['file:///course/lesson.md#target-heading', '/course/lesson.md', { anchor: 'target-heading' }],
   ])('opens %s through the preview callback', (target, path, options) => {
     const openFile = vi.fn()
     const view = render(
@@ -29,20 +33,20 @@ describe('Markdown file links', () => {
     expect(view.container.querySelector('a')).toBeNull()
   })
 
-  it.each(['/workspace/chart.png', 'C:/work/chart.png'])('keeps %s accessible when inline images are unavailable', (path) => {
-    const openFile = vi.fn()
-    const view = render(
-      <MarkdownDelegateProvider openFile={openFile}>
-        <MarkdownText
-          text={`![Preview](${path}) [Open image](${path})`}
-          pathImages={{ resolve: () => undefined }}
-        />
-      </MarkdownDelegateProvider>,
-    )
-    expect(view.container.querySelector('img')).toBeNull()
-    fireEvent.click(view.getByRole('button', { name: 'Open image' }))
-    expect(openFile).toHaveBeenCalledExactlyOnceWith(path, undefined)
-  })
+  it.each(['/workspace/chart.png', 'C:/work/chart.png'])(
+    'keeps %s accessible when inline images are unavailable',
+    (path) => {
+      const openFile = vi.fn()
+      const view = render(
+        <MarkdownDelegateProvider openFile={openFile}>
+          <MarkdownText text={`![Preview](${path}) [Open image](${path})`} pathImages={{ resolve: () => undefined }} />
+        </MarkdownDelegateProvider>,
+      )
+      expect(view.container.querySelector('img')).toBeNull()
+      fireEvent.click(view.getByRole('button', { name: 'Open image' }))
+      expect(openFile).toHaveBeenCalledExactlyOnceWith(path, undefined)
+    },
+  )
 
   it.each(['', '![](https://example.com/image.png)'])('names an empty label %s with the decoded path', (label) => {
     const view = render(
@@ -67,10 +71,7 @@ describe('Markdown file links', () => {
     const resolve = vi.fn()
     const view = render(
       <MarkdownDelegateProvider openFile={openFile}>
-        <MarkdownText
-          text={'[see `index.ts`][source]\n\n[source]: src/index.ts#L3-L3'}
-          fileMentions={{ resolve }}
-        />
+        <MarkdownText text={'[see `index.ts`][source]\n\n[source]: src/index.ts#L3-L3'} fileMentions={{ resolve }} />
       </MarkdownDelegateProvider>,
     )
     fireEvent.click(view.getByRole('button', { name: 'see index.ts' }))
@@ -80,11 +81,23 @@ describe('Markdown file links', () => {
   })
 
   it.each([
-    '//example.com/file', '%2F%2Fexample.com/file', '%5C%5Cserver%5Cfile',
-    'javascript:alert', 'data:text/plain,hi', 'file:///etc/passwd', 'vscode:open',
-    '%6Aavascript:alert', '#L2', 'file.ts?raw=1', 'file%ZZ.ts', 'file%00.ts',
-    'file.ts#heading', 'file.ts#L0', 'file.ts#L3-L2',
-    'file.ts#L9007199254740992', 'file.ts#L1-L9007199254740992',
+    '//example.com/file',
+    '%2F%2Fexample.com/file',
+    '%5C%5Cserver%5Cfile',
+    'javascript:alert',
+    'data:text/plain,hi',
+    'file://remote-server/course.md',
+    'vscode:open',
+    '%6Aavascript:alert',
+    '#L2',
+    'file.ts?raw=1',
+    'file%ZZ.ts',
+    'file%00.ts',
+    'file.ts#L0',
+    'file.ts#L3-L2',
+    'file.md#%00',
+    'file.ts#L9007199254740992',
+    'file.ts#L1-L9007199254740992',
   ])('keeps unsupported destination %s inert', (target) => {
     const openFile = vi.fn()
     const view = render(
@@ -98,7 +111,9 @@ describe('Markdown file links', () => {
   })
 
   it('preserves external links and leaves local links inert without an opener', () => {
-    const view = render(<MarkdownText text={'[web](https://example.com/a#L1) [mail](mailto:a@example.com) [file](src/a.ts)'} />)
+    const view = render(
+      <MarkdownText text={'[web](https://example.com/a#L1) [mail](mailto:a@example.com) [file](src/a.ts)'} />,
+    )
     expect(view.getByRole('link', { name: 'web' }).getAttribute('target')).toBe('_blank')
     expect(view.getByRole('link', { name: 'mail' }).getAttribute('href')).toBe('mailto:a@example.com')
     expect(view.queryByRole('button')).toBeNull()

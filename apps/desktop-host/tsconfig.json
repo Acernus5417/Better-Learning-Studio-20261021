@@ -8,19 +8,45 @@
     "src"
   ],
   "references": [
-    { "path": "../../packages/attachment/attachment" },
-    { "path": "../../vendor/cordis" },
-    { "path": "../../packages/core/agent" },
-    { "path": "../../packages/jobs/jobs" },
-    { "path": "../../packages/llm/llm" },
-    { "path": "../../packages/schedule/schedule" },
-    { "path": "../../packages/session/session-projection" },
-    { "path": "../../packages/subagent/subagent" },
-    { "path": "../../packages/core/tools" },
-    { "path": "../../packages/workspace/workspace" },
-    { "path": "../../packages/skill/skill-office" },
-    { "path": "../../packages/util/home-paths" },
-    { "path": "../../packages/skill/tool-workspace-dependencies" },
+    {
+      "path": "../../packages/attachment/attachment"
+    },
+    {
+      "path": "../../vendor/cordis"
+    },
+    {
+      "path": "../../packages/core/agent"
+    },
+    {
+      "path": "../../packages/jobs/jobs"
+    },
+    {
+      "path": "../../packages/llm/llm"
+    },
+    {
+      "path": "../../packages/schedule/schedule"
+    },
+    {
+      "path": "../../packages/session/session-projection"
+    },
+    {
+      "path": "../../packages/subagent/subagent"
+    },
+    {
+      "path": "../../packages/core/tools"
+    },
+    {
+      "path": "../../packages/workspace/workspace"
+    },
+    {
+      "path": "../../packages/skill/skill-office"
+    },
+    {
+      "path": "../../packages/util/home-paths"
+    },
+    {
+      "path": "../../packages/skill/tool-workspace-dependencies"
+    },
     {
       "path": "../cli"
     },
@@ -35,6 +61,18 @@
     },
     {
       "path": "../../packages/credentials/deepseek-account"
+    },
+    {
+      "path": "../../packages/util/course-document"
+    },
+    {
+      "path": "../../packages/api/session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../packages/core/session"
+    },
+    {
+      "path": "../../packages/session/session-persistence"
     }
   ]
 }

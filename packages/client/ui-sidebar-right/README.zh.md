@@ -60,6 +60,8 @@ kind: "package-reference"
 
 root 作用域的 `rightbar` 入口通过独立的 `rightbar.session` 子树渲染选中的 Session，以及拥有已初始化 `keepMounted` 正文的后台 Session。每个 View 拥有自身的 Session reference。只有前台子树上报框架列宽；其他子树保持隐藏，不删除 tab 状态。
 
+全局主面板可按自身 `MainPanelId` 注册 root 作用域的 `rightbar.panel` 内容。该内容接收框架的 `RightbarOwnerProps` 几何参数，通过 `ctx.layout` 自行管理展开和关闭；它不接收 Session，也不激活 Session 导航控制器。保留的 Session 子树维持隐藏，未注册的面板 id 不渲染全局右栏内容。
+
 <a id="state"></a>
 ## 状态
 

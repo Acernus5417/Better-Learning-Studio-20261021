@@ -60,6 +60,8 @@ The panel takes the conversation's ground colour and content font sizes rather t
 
 The root-scoped `rightbar` entry renders the selected Session and background Sessions with initialized `keepMounted` bodies through separate `rightbar.session` subtrees. Each View owns its Session reference. Only the foreground subtree reports a frame track; other subtrees stay hidden without deleting tab state.
 
+Global main panels may register root-scoped `rightbar.panel` content keyed by their `MainPanelId`. It receives the frame's `RightbarOwnerProps` geometry and owns opening and closing through `ctx.layout`; it receives no Session and does not activate the Session navigation controller. Retained Session subtrees remain hidden, and an unregistered panel id renders no global right-column content.
+
 <a id="state"></a>
 ## State
 

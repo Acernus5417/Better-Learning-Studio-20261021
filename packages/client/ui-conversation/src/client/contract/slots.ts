@@ -1,20 +1,42 @@
 /** Target-neutral Conversation slot declarations and composed component props. */
+import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
+import type { TurnLocation } from './conversation.ts'
 import type { ReactNode, RefObject } from 'react'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { FileUploadReceiptId } from '@deepseek-ai/dsh-client-file-upload/client'
 import type { ImageLightboxLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { MaybeSnapshotSelectorHook, ObservableSnapshot, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store'
 import type {
-  MaybeSnapshotSelectorHook, ObservableSnapshot, SnapshotSelectorHook,
-} from '@deepseek-ai/dsh-client-store'
-import type {
-  FactoryComponentPropsOf, FactoryLocalComponentPropsOf,
-  InjectFace, PropsLocale, PropsRenderFactories, PropsRenderSlots, PropsRuntime, PropsStore,
+  FactoryComponentPropsOf,
+  FactoryLocalComponentPropsOf,
+  InjectFace,
+  PropsLocale,
+  PropsRenderFactories,
+  PropsRenderSlots,
+  PropsRuntime,
+  PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Let a specialized Conversation owner claim a local file link before generic preview.
+     * @param sessionId - Conversation that produced the link.
+     * @param path - Decoded absolute or workspace-relative path.
+     * @param options - Optional source line or Markdown anchor.
+     * @mode bail
+     */
+    'conversation/file-open'(
+      sessionId: SessionId,
+      path: string,
+      options: { readonly line?: number; readonly anchor?: string } | undefined,
+    ): Promise<void> | undefined
+  }
+}
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ComposerBlock } from './composer-blocks.ts'
 import type { DraftAttachmentId, InputActions, InputNotice, InputState } from './input.ts'
@@ -164,13 +186,24 @@ export interface UserTextNodeOwnerProps {
 }
 
 /** Complete props for the selected business node, including its Session scope. */
-export type UserTextNodeProps<Id extends UserTextId = UserTextId> =
-  PropsRuntime<'conversation.user.text.node', Id>
+export type UserTextNodeProps<Id extends UserTextId = UserTextId> = PropsRuntime<'conversation.user.text.node', Id>
 
 /** Selector hook over the current Session's assembled Conversation. */
 export type UseConversation = SnapshotSelectorHook<ConversationSnapshot>
 /** Selector hook over the registered Conversation View roster. */
 export type UseConversationViews = SnapshotSelectorHook<readonly ViewTab[]>
+
+/** Durable message identity offered to finalized-answer extension actions. */
+export interface AssistantActionOwnerProps {
+  messageId: MessageId
+}
+
+/** Owner currency of the completed-Turn extension chain. */
+export interface TurnTailOwnerProps {
+  turn: TurnLocation
+  seq: number
+  openFile: (path: string) => void
+}
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotFactoryMap {
@@ -192,6 +225,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface SlotMap {
+    /** Ordered extensions for a finalized assistant answer, independent of the rendering target. */
+    'conversation.chat.assistant-actions': { kind: 'list'; scope: 'session'; owner: AssistantActionOwnerProps }
+    'conversation.chat.turnTail': { kind: 'list'; scope: 'session'; owner: TurnTailOwnerProps }
     /** One business-owned inline renderer for a pure JSON text node. */
     'conversation.user.text.node': {
       kind: 'keyed'
@@ -495,17 +531,20 @@ export interface InputActivityOwnerProps extends InputControlOwnerProps {
 }
 
 /** Full props of the resident composer bar. */
-export type ComposerBarProps =
-  PropsRuntime<'conversation.composer.bar'>
-  & PropsRenderSlots<
-    | 'conversation.input.attachments' | 'conversation.input.overlay'
+export type ComposerBarProps = PropsRuntime<'conversation.composer.bar'> &
+  PropsRenderSlots<
+    | 'conversation.input.attachments'
+    | 'conversation.input.overlay'
     | 'conversation.input.permission'
-    | 'conversation.input.left' | 'conversation.input.plan'
-    | 'conversation.input.right' | 'conversation.input.model' | 'conversation.input.activity'
+    | 'conversation.input.left'
+    | 'conversation.input.plan'
+    | 'conversation.input.right'
+    | 'conversation.input.model'
+    | 'conversation.input.activity'
     | 'conversation.composer.dock'
-  >
-  & InjectFace<ComposerBarInjected>
-  & PropsLocale<'conversation'>
+  > &
+  InjectFace<ComposerBarInjected> &
+  PropsLocale<'conversation'>
 
 /** Owner values used to elect a composer takeover. */
 export interface ComposerChainProps {
@@ -526,10 +565,9 @@ export interface HeroBrandMarkOwnerProps {
 }
 
 /** Full props of the resident optional-Session Conversation shell. */
-export type ConversationSlotProps =
-  PropsRuntime<'main.conversation'>
-  & PropsRenderSlots<'conversation.header'>
-  & PropsRenderFactories
+export type ConversationSlotProps = PropsRuntime<'main.conversation'> &
+  PropsRenderSlots<'conversation.header'> &
+  PropsRenderFactories
 
 /** Inputs shared by main and embedded Conversation content occurrences. */
 export interface ConversationContentInputProps {
@@ -556,37 +594,32 @@ export type ConversationStore = ReturnType<typeof createConversationStore>
 export type ConversationViewsProps = FactoryLocalComponentPropsOf<'conversation.content', 'views'>
 
 /** Full props of the Factory's caller-selected width-control position. */
-export type ConversationWidthControlsProps =
-  FactoryLocalComponentPropsOf<'conversation.content', 'widthControls'>
+export type ConversationWidthControlsProps = FactoryLocalComponentPropsOf<'conversation.content', 'widthControls'>
 
 /** Full props of the strict Session body. */
-export type ConversationSessionSlotProps =
-  PropsRuntime<'conversation.session'>
-  & PropsRenderSlots<'conversation.view'>
-  & PropsStore<ConversationStore>
-  & InjectFace<ConversationSessionInjected>
+export type ConversationSessionSlotProps = PropsRuntime<'conversation.session'> &
+  PropsRenderSlots<'conversation.view'> &
+  PropsStore<ConversationStore> &
+  InjectFace<ConversationSessionInjected>
 
 /** Full props of the resident navigation header. */
-export type ConversationHeaderProps =
-  PropsRuntime<'conversation.header'>
-  & PropsRenderSlots<'conversation.header.leading' | 'conversation.session.header'>
+export type ConversationHeaderProps = PropsRuntime<'conversation.header'> &
+  PropsRenderSlots<'conversation.header.leading' | 'conversation.session.header'>
 
 /** Full props of the strict Session header. */
-export type ConversationSessionHeaderSlotProps =
-  PropsRuntime<'conversation.session.header'>
-  & PropsRenderSlots<
-    'conversation.session.header.lineage'
+export type ConversationSessionHeaderSlotProps = PropsRuntime<'conversation.session.header'> &
+  PropsRenderSlots<
+    | 'conversation.session.header.lineage'
     | 'conversation.session.header.actions'
     | 'conversation.session.header.utilities'
     | 'conversation.session.header.corner'
-  >
-  & PropsStore<ConversationStore>
-  & InjectFace<ConversationSessionHeaderInjected>
-  & PropsLocale<'conversation'>
+  > &
+  PropsStore<ConversationStore> &
+  InjectFace<ConversationSessionHeaderInjected> &
+  PropsLocale<'conversation'>
 
 /** Full props of the draft-attachment renderer. */
-export type ComposerAttachmentsProps =
-  PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
+export type ComposerAttachmentsProps = PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
 
 /** Owner share common to blank-session Workspace pickers. */
 export interface EmptyWorkspaceOwnerProps {

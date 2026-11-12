@@ -5,7 +5,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { parentAgentOptionsForDelegation, type SubagentActivation } from '@deepseek-ai/dsh-subagent'
 
 /** The independently composed tool sets used by application-owned visual work. */
-export type CourseVisualPreset = 'better-learning-vision' | 'better-learning-probe'
+export type CourseVisualPreset = 'better-learning-vision' | 'better-learning-probe' | 'better-learning-presentation'
 
 /**
  * Retain only each visual preset's filesystem tools and exclude inherited Host tools.
@@ -16,6 +16,8 @@ export function installCourseVisualChildPolicy(ctx: Context): void {
     const preset = agent.session.header.agentPreset
     if (preset === 'better-learning-vision') {
       agent.ctx.tools.restrict({ allow: ['read', 'read_image', 'write', 'edit'] })
+    } else if (preset === 'better-learning-presentation') {
+      agent.ctx.tools.restrict({ allow: [] })
     } else if (preset === 'better-learning-probe') {
       agent.ctx.tools.restrict({ allow: ['read_image', 'write'] })
     }
@@ -36,7 +38,7 @@ export async function startCourseVisualChild(
 ): Promise<SubagentActivation> {
   const activation = await ctx.subagents.startActivation({
     provider: 'spawn',
-    label: agentPreset === 'better-learning-probe' ? 'Course vision probe' : 'Course visual transcription',
+    label: agentPreset === 'better-learning-presentation' ? 'Course semantic presentation' : agentPreset === 'better-learning-probe' ? 'Course vision probe' : 'Course visual transcription',
     request: {
       parent, prompt: [{ type: 'text', text: prompt }], agentPreset,
       agentOptions: parentAgentOptionsForDelegation(parent), maxDepth: 1,

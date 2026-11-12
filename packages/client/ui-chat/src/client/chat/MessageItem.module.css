@@ -7,6 +7,12 @@
   gap: 6px;
 }
 
+:global(html[data-studio-markdown]) .bubble {
+  font-family: var(--dsw-font-family);
+  font-size: calc(var(--dsh-content-font-size, 14px) + 2px);
+  line-height: 1.8;
+}
+
 .userStack {
   display: flex;
   flex-direction: column;

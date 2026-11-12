@@ -45,6 +45,7 @@ import {
 } from './contract/slots.ts'
 import { createWorkspaceShortcutControls, installWorkspaceShortcuts } from './shortcuts.ts'
 import { UiWorkspaceService } from './navigation.ts'
+import { installCourseWorkbench } from './course/apply.ts'
 import { createWorkspaceViewStore } from './stores.ts'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { ArchiveSessionMenuItem, ArchiveSessionRowButton, SessionArchiveConfirmDialog } from './session-actions/ArchiveSession.tsx'
@@ -133,6 +134,10 @@ export function apply(ctx: Context): void {
     },
   })
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
+  if ((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true) {
+    ctx.inject(['resources', 'conversation', 'uiConversation', 'inputTriggers', 'theme', 'sidebarRight'], (ctx) => { installCourseWorkbench(ctx, uiWorkspace) })
+    return
+  }
   const shortcutControls = createWorkspaceShortcutControls()
 
   const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {

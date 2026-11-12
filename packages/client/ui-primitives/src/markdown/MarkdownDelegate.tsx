@@ -12,18 +12,20 @@ export type MarkdownExternalLinkHandler = (href: string) => void
 /** Navigation capabilities supplied by the nearest Markdown owner. */
 export interface MarkdownDelegate {
   /** Image previews for decoded local paths in this owner's workspace. */
-  readonly fileImages?: {
-    resolve: (path: string) => string | undefined
-    labels: ImageLightboxLabels & { open: string; loading: string; failed: string }
-  } | undefined
+  readonly fileImages?:
+    | {
+      resolve: (path: string) => string | undefined
+      labels: ImageLightboxLabels & { open: string; loading: string; failed: string }
+    }
+    | undefined
   /** Ordinary HTTP(S) activation; absent handlers retain native anchor behavior. */
   readonly openExternalLink?: MarkdownExternalLinkHandler | undefined
   /**
    * Open a decoded local destination from settled Markdown; absent handlers leave plain text.
    * @param path - Absolute or workspace-relative file path.
-   * @param options - First line to reveal when the destination specifies a line or range.
+   * @param options - First source line or decoded Markdown heading/block anchor.
    */
-  readonly openFile?: ((path: string, options?: { line?: number }) => void) | undefined
+  readonly openFile?: ((path: string, options?: { line?: number; anchor?: string }) => void) | undefined
 }
 
 const MarkdownDelegateContext = createContext<MarkdownDelegate>({})
@@ -46,11 +48,7 @@ export function MarkdownDelegateProvider({
   fileImages,
 }: MarkdownDelegateProviderProps): ReactNode {
   const delegate = useMemo(() => ({ openExternalLink, openFile, fileImages }), [openExternalLink, openFile, fileImages])
-  return (
-    <MarkdownDelegateContext.Provider value={delegate}>
-      {children}
-    </MarkdownDelegateContext.Provider>
-  )
+  return <MarkdownDelegateContext.Provider value={delegate}>{children}</MarkdownDelegateContext.Provider>
 }
 
 /**

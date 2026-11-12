@@ -182,6 +182,8 @@ export interface InputTarget {
 
 /** Per-session input facade owned by the conversation wiring layer. */
 export interface SessionInput extends InputTarget {
+  /** Revision-guarded insertion preserves existing text, reference chips and attachments. */
+  readonly actions: Pick<InputActions, 'captureInsertion' | 'insertText'>
   /** Replace the whole draft with plain text, removing inline reference chips. */
   setDraft(text: string): void
   /** Append ordered browser-owned attachment ids; busy admission phases refuse. */

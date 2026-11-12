@@ -15,6 +15,10 @@ import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
+    /** Studio mode buttons in the persistent outer navigation rail. */
+    /** Contextual search button in the Studio sidebar heading. */
+    'sidebar.studio.search': { kind: 'single'; scope: 'root'; owner: Record<never, never> }
+    'sidebar.studio.navigation': { kind: 'single'; scope: 'root'; owner: Record<never, never> }
     /** Non-interactive notification inside the collapsed sidebar expand button. */
     'sidebar.toggle.badge': { kind: 'single'; scope: 'root'; owner: Record<never, never> }
     /**
@@ -126,7 +130,10 @@ export type SidebarRootInjected = {
   /** Select the global panel addressed by a sidebar row. */
   selectPanel: (id: MainPanelId) => void
   /** Private reactive sources bound to framework selector hooks. */
-  hooks: { panels: ObservableSnapshot<readonly SidebarPanelMetadata[]>; shortcuts: ObservableSnapshot<readonly ShortcutCatalogEntry[]> }
+  hooks: {
+    panels: ObservableSnapshot<readonly SidebarPanelMetadata[]>
+    shortcuts: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
+  }
 }
 
 /**
@@ -134,9 +141,10 @@ export type SidebarRootInjected = {
  * render shares, this package's injected callbacks, and the standard locale
  * seat. Panel metadata arrives through an injected observable.
  */
-export type SidebarRootComponentProps =
-  PropsRuntime<'sidebar'>
-  & PropsRenderSlots<
+export type SidebarRootComponentProps = PropsRuntime<'sidebar'> &
+  PropsRenderSlots<
+    | 'sidebar.studio.search'
+    | 'sidebar.studio.navigation'
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
     | 'sidebar.toggle.badge'
@@ -144,5 +152,6 @@ export type SidebarRootComponentProps =
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'
-  >
-  & InjectFace<SidebarRootInjected> & PropsLocale<'sidebar'>
+  > &
+  InjectFace<SidebarRootInjected> &
+  PropsLocale<'sidebar'>

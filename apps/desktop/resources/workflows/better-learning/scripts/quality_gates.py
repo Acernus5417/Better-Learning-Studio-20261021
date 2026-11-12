@@ -259,7 +259,7 @@ def check_retained(course, target):
     return receipt
 
 
-def relocate(course, moves):
+def relocate(course, moves, changed_paths=None):
     if not enabled(course):
         return
     path = Path(course) / RECEIPTS
@@ -270,7 +270,7 @@ def relocate(course, moves):
     for target, receipt in state['artifacts'].items():
         destination = moves.get(target, target)
         # Validate semantic equivalence before recording a new path.
-        if content_hash(inside(course, destination).read_text(encoding='utf-8')) != receipt['content_hash']:
+        if (changed_paths is None or destination in changed_paths) and content_hash(inside(course, destination).read_text(encoding='utf-8')) != receipt['content_hash']:
             raise ValueError('SEMANTIC_REVIEW_STALE: relocation changed content: ' + target)
         changed[destination] = dict(receipt, target_id=destination)
     state['artifacts'] = changed

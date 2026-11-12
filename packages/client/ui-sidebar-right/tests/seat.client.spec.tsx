@@ -421,6 +421,45 @@ describe('RightbarSeat presentation', () => {
     expect(h.layout()).toBe(retained)
   })
 
+  it('renders root panel content with frame geometry while retaining the hidden Session column', async () => {
+    const h = await mountSeat()
+    h.open('retained.txt')
+    const retained = h.layout()
+    function CoursePanel(props: PropsRuntime<'rightbar.panel'>) {
+      expect('sessionId' in props).toBe(false)
+      return <aside data-global-rightbar data-width={props.width} data-viewport={props.viewportWidth} data-can-show={props.canShow} />
+    }
+    let dispose = () => {}
+    await act(async () => {
+      dispose = h.runtime.slots.register({ name: 'rightbar.panel', key: 'course-reading' }, CoursePanel)
+    })
+    expect(h.view.container.querySelector('[data-global-rightbar]')).toBeNull()
+    act(() => { h.runtime.panelInfo.set({ activePanelId: 'course-reading' as MainPanelId }) })
+    const panel = element(h.view.container, '[data-global-rightbar]')
+    expect(panel.dataset).toMatchObject({ width: '420', viewport: '1440', canShow: 'true' })
+    expect(element(h.view.container, '[data-sidebar-right-session]').hidden).toBe(true)
+    expect(h.controller.mounted.getSnapshot()).toBeUndefined()
+    expect(h.layout()).toBe(retained)
+    act(() => { h.view.update({ width: 360, viewportWidth: 900, canShow: false }) })
+    expect(panel.dataset).toMatchObject({ width: '360', viewport: '900', canShow: 'false' })
+    act(() => { h.runtime.panelInfo.set({ activePanelId: 'plugins' as MainPanelId }) })
+    expect(h.view.container.querySelector('[data-global-rightbar]')).toBeNull()
+    expect(element(h.view.container, '[data-sidebar-right-session]').hidden).toBe(true)
+    expect(h.controller.mounted.getSnapshot()).toBeUndefined()
+    expect(h.layout()).toBe(retained)
+    act(() => { h.runtime.panelInfo.set({ activePanelId: 'course-reading' as MainPanelId }) })
+    expect(h.view.container.querySelector('[data-global-rightbar]')).not.toBeNull()
+    await act(async () => { dispose() })
+    expect(h.view.container.querySelector('[data-global-rightbar]')).toBeNull()
+    act(() => {
+      h.view.update({ width: 420, viewportWidth: 1440, canShow: true })
+      h.runtime.panelInfo.set({ activePanelId: null })
+    })
+    expect(element(h.view.container, '[data-sidebar-right-session]').hidden).toBe(false)
+    expect(h.controller.mounted.getSnapshot()).toBe(SESSION)
+    expect(h.layout()).toBe(retained)
+  })
+
   it('names the on-screen Session before a Conversation opener acts in the commit that returns from a global panel', async () => {
     const h = await mountSeat(1440, true, 0, true)
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})

@@ -1,0 +1,7 @@
+# Bilingual-pair consistency record for studio-course-workbench.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/studio-course-workbench.md
+/studio-course-workbench:
+  en: 78e01e95d340b359
+  zh: 98ac7817f56d09c3

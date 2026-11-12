@@ -1,5 +1,5 @@
 /** Assistant reasoning disclosure, independent of Tool-call presentation. */
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { DisclosureRow, IconThinkOutlineRegular, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ChatViewSlotProps, UseDisclosure, UsePresentation } from '../contract/slots.ts'
@@ -19,8 +19,7 @@ function latestCompletedParagraphFirstLine(text: string): string {
   const separator = /\r?\n(?:[\t ]*\r?\n)+/g
   while (true) {
     const nextParagraph = separator.exec(text)
-    const paragraphEnd = nextParagraph === null ? text.length
-      : nextParagraph.index + nextParagraph[0].indexOf('\n')
+    const paragraphEnd = nextParagraph === null ? text.length : nextParagraph.index + nextParagraph[0].indexOf('\n')
     const newline = text.indexOf('\n', paragraphStart)
     if (newline !== -1 && newline <= paragraphEnd) {
       const candidate = text.slice(paragraphStart, newline).trim()
@@ -45,7 +44,14 @@ function latestCompletedParagraphFirstLine(text: string): string {
  * @param props.t - conversation locale seat for the disclosure and running status.
  * @returns the reasoning disclosure.
  */
-export const ReasoningRow = memo(function ReasoningRow({ text, running, usePresentation, useDisclosure, renderSlot, t }: {
+export const ReasoningRow = memo(function ReasoningRow({
+  text,
+  running,
+  usePresentation,
+  useDisclosure,
+  renderSlot,
+  t,
+}: {
   text: string
   running: boolean
   useDisclosure: UseDisclosure
@@ -53,25 +59,35 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, usePrese
   t: ChatViewSlotProps['t']
 } & Pick<PropsRenderSlots<'conversation.chat.reasoning.body'>, 'renderSlot'>) {
   const { expanded, toggle } = useDisclosure()
+  const [visited, setVisited] = useState(expanded)
+  useEffect(() => {
+    if (expanded) setVisited(true)
+  }, [expanded])
   const summaryText = running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
   const summary = useMemo(() => summaryText.replaceAll('**', ''), [summaryText])
-  const preview = usePresentation(policy => !expanded && summary !== ''
-    && (running || policy.settledReasoningPreview))
-  const collapsedContent = useMemo(() => (
-    <>
-      <span className={css.separator} data-shimmer-decoration aria-hidden />
-      <span className={css.summary} data-streaming={running || undefined}>
-        <span className={css.summaryText}>
-          <TextShimmer>{summary}</TextShimmer>
+  const preview = usePresentation(
+    policy => !expanded && summary !== '' && (running || policy.settledReasoningPreview),
+  )
+  const collapsedContent = useMemo(
+    () => (
+      <>
+        <span className={css.separator} data-shimmer-decoration aria-hidden />
+        <span className={css.summary} data-streaming={running || undefined}>
+          <span className={css.summaryText}>
+            <TextShimmer>{summary}</TextShimmer>
+          </span>
         </span>
-      </span>
-    </>
-  ), [running, summary])
-  const content = useMemo(() => expanded ? (
-    <div className={css.thinkBody}>
-      {renderSlot('conversation.chat.reasoning.body', { text, running })}
-    </div>
-  ) : undefined, [expanded, renderSlot, running, text])
+      </>
+    ),
+    [running, summary],
+  )
+  const content = useMemo(
+    () =>
+      expanded || visited ? (
+        <div className={css.thinkBody}>{renderSlot('conversation.chat.reasoning.body', { text, running })}</div>
+      ) : undefined,
+    [expanded, visited, renderSlot, running, text],
+  )
 
   return (
     <div
@@ -94,8 +110,18 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, usePrese
         expandOnRowClick
         onToggle={toggle}
         collapsedContent={collapsedContent}
+        keepMounted
       >
-        {content}
+        <div
+          className={css.reveal}
+          data-open={expanded || undefined}
+          aria-hidden={!expanded}
+          ref={(element) => {
+            if (element !== null) element.inert = !expanded
+          }}
+        >
+          <div className={css.clip}>{content}</div>
+        </div>
       </DisclosureRow>
     </div>
   )

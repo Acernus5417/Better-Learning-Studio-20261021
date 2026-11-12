@@ -7,6 +7,8 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
+专用 Conversation 占用者可通过 `conversation/file-open` bail 事件接管已解码的本地文件导航。返回 promise 表示负责本次打开及其行号或 Markdown 锚点；返回 undefined 则继续使用通用文件预览路线。
+
 桌面端产品事件使用可选的[产品埋点服务](../product-analytics/README.zh.md)，不包含普通 Web 交互。
 
 ## 概述
@@ -194,3 +196,5 @@ selector 必须是 owner currency 的纯函数。非 null 返回值作为 `match
 无。
 
 </details>
+
+`conversation.chat.assistant-actions` 列表 Slot 向已定稿回答的扩展提供持久 `messageId`。声明归 Conversation 所有，Chat 继续导出原有 owner 类型。Studio 将原输入框实例置于消息滚动区域外的独立底栏，思考展开、滚动和窗口变化不改变输入框所在布局；其他部署保留原有滚动输入框。

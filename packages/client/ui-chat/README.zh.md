@@ -6,6 +6,8 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
+回答中的本地文件链接先通过 `conversation/file-open` 提供所属 Session、解码路径和行号或锚点。已接管的操作跳过通用侧栏预览，失败继续由 Chat 既有重试弹窗处理；重试保留原导航参数。
+
 桌面端产品事件使用可选的[产品埋点服务](../product-analytics/README.zh.md)，不包含普通 Web 交互。
 
 ## 概述

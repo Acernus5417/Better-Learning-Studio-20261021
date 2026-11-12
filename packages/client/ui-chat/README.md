@@ -6,6 +6,8 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+Local answer links first offer their Session, decoded path and line/anchor to `conversation/file-open`. Claimed operations bypass the generic sidebar preview and preserve failures for the chat's existing retry dialog; retries retain their original navigation options.
+
 Desktop product events use the optional [product analytics service](../product-analytics/README.md); ordinary Web interactions are excluded.
 
 ## Summary

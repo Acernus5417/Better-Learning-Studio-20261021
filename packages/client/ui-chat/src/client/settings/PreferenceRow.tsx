@@ -8,7 +8,14 @@ import css from './PreferenceRow.module.css'
  * @param props - localized copy, selected value, choices, and mutation callback.
  * @returns the settings row.
  */
-export function PreferenceRow({ title, description, value, selectedLabel, options, onSelect }: {
+export function PreferenceRow({
+  title,
+  description,
+  value,
+  selectedLabel,
+  options,
+  onSelect,
+}: {
   title: string
   description: string
   value: string
@@ -18,7 +25,9 @@ export function PreferenceRow({ title, description, value, selectedLabel, option
 }) {
   const [open, setOpen] = useState(false)
   const selectorRef = useRef<HTMLButtonElement>(null)
-  const closeMenu = () => { setOpen(false) }
+  const closeMenu = () => {
+    setOpen(false)
+  }
   const selectMode = (id: string) => {
     selectorRef.current?.focus({ preventScroll: true })
     closeMenu()
@@ -31,7 +40,9 @@ export function PreferenceRow({ title, description, value, selectedLabel, option
       className={css.selector}
       aria-haspopup="menu"
       aria-expanded={open}
-      onClick={() => { setOpen(value => !value) }}
+      onClick={() => {
+        setOpen(value => !value)
+      }}
     >
       {selectedLabel}
       <IconChevronDownOutlineRegular className={css.chevron} />
@@ -42,7 +53,9 @@ export function PreferenceRow({ title, description, value, selectedLabel, option
     <div className={css.row}>
       <div className={css.rowText}>
         <div className={css.title}>{title}</div>
-        <div className={css.desc}>{description}</div>
+        {(globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ !== true && (
+          <div className={css.desc}>{description}</div>
+        )}
       </div>
       <Menu
         open={open}

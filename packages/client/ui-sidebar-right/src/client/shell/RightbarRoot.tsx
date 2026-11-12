@@ -1,4 +1,4 @@
-/** Root-scoped controller for the right Sidebar's Session content. */
+/** Root-scoped right Sidebar content for Sessions and global main panels. */
 import { useLayoutEffect } from 'react'
 import type { HostObservable, InjectFace, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -12,7 +12,7 @@ export interface RightbarRootInjected {
   readonly mountView: (reference: SessionReference) => () => void
 }
 
-type RootProps = PropsRuntime<'rightbar'> & PropsRenderSlots<'rightbar.session'> & InjectFace<RightbarRootInjected>
+type RootProps = PropsRuntime<'rightbar'> & PropsRenderSlots<'rightbar.session' | 'rightbar.panel'> & InjectFace<RightbarRootInjected>
 
 function SessionView({ view, visible, SessionProvider, renderSlot, mountView, width, viewportWidth, canShow }:
   Pick<RootProps, 'SessionProvider' | 'renderSlot' | 'mountView' | 'width' | 'viewportWidth' | 'canShow'>
@@ -27,12 +27,17 @@ function SessionView({ view, visible, SessionProvider, renderSlot, mountView, wi
 }
 
 /**
- * Keep independent Session subtrees and hide those outside the selected Conversation.
- * @param props - frame geometry, view targets and the authorized Session renderer.
- * @returns the foreground and retained background Sidebars.
+ * Retain Session subtrees while a global panel supplies its independent right column.
+ * @param props - frame geometry, retained views, and authorized content renderers.
+ * @returns Session Sidebars and the selected global panel's optional root content.
  */
 export function RightbarRoot({ usePanelInfo, useViews, ...props }: RootProps) {
-  const visible = usePanelInfo(info => info.activePanelId === null)
+  const panelId = usePanelInfo(info => info.activePanelId)
   const views = useViews(value => value)
-  return <>{views.map(view => <SessionView key={view.sessionId} {...props} view={view} visible={visible} />)}</>
+  return <>
+    {views.map(view => <SessionView key={view.sessionId} {...props} view={view} visible={panelId === null} />)}
+    {panelId !== null && props.renderSlot('rightbar.panel', {
+      width: props.width, viewportWidth: props.viewportWidth, canShow: props.canShow,
+    }, { entryKey: panelId })}
+  </>
 }

@@ -320,6 +320,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
 
 async function main(): Promise<void> {
   process.env.BLS_STUDIO = '1'
+  process.env.BLS_COURSE_ROOT ??= join(app.getPath('documents'), 'Better Learning Studio', 'course')
   const studioMode = process.env.BLS_STUDIO === '1'
   if (process.env.DSH_HOME === undefined || process.env.DSH_HOME.trim() === '') {
     process.env.DSH_HOME = join(app.getPath('appData'), 'BetterLearningStudio-DSH', 'dsh')
@@ -327,6 +328,9 @@ async function main(): Promise<void> {
   process.env.BLS_WORKFLOW_ROOT = app.isPackaged
     ? join(process.resourcesPath, 'workflows', 'better-learning')
     : fileURLToPath(new URL('../resources/workflows/better-learning', import.meta.url))
+  process.env.BLS_STUDY_SKILLS_ROOT = app.isPackaged
+    ? join(process.resourcesPath, 'skills')
+    : fileURLToPath(new URL('../resources/skills', import.meta.url))
   const desktopSettings = readDesktopSettings(app.getPath('userData'))
   void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR

@@ -1656,3 +1656,16 @@ export const IconMicrophoneOutlineRegular = (props: IconProps) => (
 export const IconMicrophoneOutlineMedium = (props: IconProps) => (
   <IconMicrophoneOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
 )
+
+/** Filled house for the Studio home mode, using the shared current-color icon face. */
+export const IconHomeFillRegular = ({ size = 20, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M2 8.5 9 2.8a1.6 1.6 0 0 1 2 0l7 5.7a.85.85 0 0 1-.54 1.5H16v6.1c0 .9-.7 1.6-1.6 1.6H12V12H8v5.7H5.6c-.9 0-1.6-.7-1.6-1.6V10H2.54A.85.85 0 0 1 2 8.5Z" />
+  </svg>
+)
+/** Open-book reading glyph aligned with the shared one-pixel outline set. */
+export const IconBookOpenOutlineRegular = ({ size = 20, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M10 4.5C8 3 5.5 2.5 2.5 3v13c3-.5 5.5 0 7.5 1.5 2-1.5 4.5-2 7.5-1.5V3c-3-.5-5.5 0-7.5 1.5Zm0 0v13" />
+  </svg>
+)

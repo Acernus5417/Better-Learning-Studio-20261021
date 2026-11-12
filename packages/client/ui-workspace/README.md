@@ -232,3 +232,11 @@ These limits define the search depth, the archive surface, and the picking carri
 None.
 
 </details>
+
+The Studio course reader hosts the supplied graph renderer in an owned frame and uses the existing rightbar, menu material and course resource provider. It releases the frame when inactive and saves graph preferences separately for each course. See the [course workbench reference](../../../docs/studio-course-workbench.md) for controls, defaults and data limits.
+
+Graph metadata crosses the frame once per resource revision; appearance, focus and theme changes do not rebuild topology. Filters coalesce for 250 ms and pending work is canceled on disposal. Incremental node/edge updates preserve positions. Drawing lists cull offscreen circles and edge bounds while retaining crossing edges and visible labels. Physics uses Barnes–Hut aggregation, stops after cooling and sends node IDs only on topology changes. Isolated contexts use atomic shared-position snapshots; other contexts recycle at most two transferable position buffers, including a pending final snapshot. Idle rendering stops and events resume it. WebGL remains instanced; no per-node display-object budget or WASM runtime is required.
+
+A graph resource can first deliver a provisional persistent snapshot and request verification immediately. Stable content revisions prevent an unchanged verification reply from rebuilding the frame. Saved file coordinates and a window-independent camera seed the first draw. The frame periodically reports bounded layout hints and flushes them at idle; the parent verifies file paths against the current course before passing them to the Host. Snapshot metadata never supplies model quotations or bypasses normal file-open admission.
+
+Course resources compare Host revisions and retain bounded snapshots instead of repeatedly comparing full source trees. Reference subscriptions follow the visible tab. Reading reuses the prepared projection, memoizes stable content and mounts CodeMirror on first edit. Large documents prepare semantic blocks, nearby formulas and folded answers progressively without recycling selected text. Native find, select-all, printing and navigation complete the required content; same-source decoration updates retain drafts. Source-version admission remains Host-owned. The complete virtual-reader phase is separate.

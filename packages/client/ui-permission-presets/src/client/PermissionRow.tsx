@@ -7,9 +7,7 @@
 import { useEffect, useState } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import {
-  IconChevronDownOutlineRegular, Menu, RiskConfirmation,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PermissionSettingsState } from './settings-store.ts'
 import type { PermissionSettingsKey } from './locales.ts'
 import { displayPermissionPreset, FULL_ACCESS_PRESET } from './presentation.ts'
@@ -28,10 +26,9 @@ export interface PermissionRowInjected {
 }
 
 /** Full component props. */
-export type PermissionRowProps =
-  PropsRuntime<'settings.general.item'>
-  & PropsLocale<'settings.permission'>
-  & InjectFace<PermissionRowInjected>
+export type PermissionRowProps = PropsRuntime<'settings.general.item'> &
+  PropsLocale<'settings.permission'> &
+  InjectFace<PermissionRowInjected>
 
 /**
  * Render the new-session Permission default selector.
@@ -60,7 +57,7 @@ export function PermissionRow({ load, select, usePermission, t }: PermissionRowP
   const busy = state.status === 'loading' || state.status === 'saving' || confirmingFullAccess
   const optionLabel = (option: PermissionSettingsState['options'][number]): string =>
     displayPermissionPreset(option.id, option.label, t)
-  const label = selected !== undefined ? optionLabel(selected) : (busy ? t('loading') : t('unavailable'))
+  const label = selected !== undefined ? optionLabel(selected) : busy ? t('loading') : t('unavailable')
   const description: string = state.error ?? t('description')
 
   return (
@@ -68,11 +65,17 @@ export function PermissionRow({ load, select, usePermission, t }: PermissionRowP
       <div className={css.row}>
         <div className={css.rowText}>
           <div className={css.title}>{t('title')}</div>
-          <div className={css.desc} role={state.error === null ? undefined : 'alert'}>{description}</div>
+          {((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ !== true || state.error !== null) && (
+            <div className={css.desc} role={state.error === null ? undefined : 'alert'}>
+              {description}
+            </div>
+          )}
         </div>
         <Menu
           open={open}
-          onClose={() => { setOpen(false) }}
+          onClose={() => {
+            setOpen(false)
+          }}
           items={state.options.map(option => ({ id: option.id, label: optionLabel(option) }))}
           selectedId={state.currentValue}
           onSelect={(id) => {
@@ -87,19 +90,21 @@ export function PermissionRow({ load, select, usePermission, t }: PermissionRowP
           }}
           align="end"
           portal
-          anchor={(
+          anchor={
             <button
               type="button"
               className={css.selector}
               aria-haspopup="menu"
               aria-expanded={open}
               disabled={busy || !state.writable || state.options.length === 0}
-              onClick={() => { setOpen(value => !value) }}
+              onClick={() => {
+                setOpen(value => !value)
+              }}
             >
               {label}
               <IconChevronDownOutlineRegular className={css.chevron} />
             </button>
-          )}
+          }
         />
       </div>
       <RiskConfirmation

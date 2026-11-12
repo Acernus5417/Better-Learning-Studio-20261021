@@ -1,18 +1,36 @@
 /** Chat-owned Slot declarations and composed component props. */
 import type { RefObject } from 'react'
-import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
+export type { AssistantActionOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { InboxState } from '@deepseek-ai/dsh-agent/types'
 import type {
-  CommandNode, CompactionSummaryNode, ConversationLocationDataStore, ConversationTurnDataMap,
-  ConversationGroupData, GroupSnapshot,
-  MessageImageLoader, MessageImageSource, MessageImagesOwnerProps, RenderEntry, TurnLocation, UserTextFacts, UserTextInput,
+  CommandNode,
+  CompactionSummaryNode,
+  ConversationLocationDataStore,
+  ConversationTurnDataMap,
+  ConversationGroupData,
+  GroupSnapshot,
+  MessageImageLoader,
+  MessageImageSource,
+  MessageImagesOwnerProps,
+  RenderEntry,
+  TurnTailOwnerProps,
+  UserTextFacts,
+  UserTextInput,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
-  HostObservable, InjectFace, KeyedSnapshotSelectorHook, PropsLocale, PropsRenderSlots, PropsRuntime,
-  PropsRenderFactories, PropsStore, SlotHookFactory, SnapshotSelectorHook,
+  HostObservable,
+  InjectFace,
+  KeyedSnapshotSelectorHook,
+  PropsLocale,
+  PropsRenderSlots,
+  PropsRuntime,
+  PropsRenderFactories,
+  PropsStore,
+  SlotHookFactory,
+  SnapshotSelectorHook,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { MarkdownFileMentions, MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -24,9 +42,7 @@ import type { ChatPresentationPolicy } from '../presentation-policy.ts'
 import type { FlowMotionRows } from '../chat/flow-motion.ts'
 import type { ToolCallId } from './store.ts'
 import type { ChatConversationViewNode, ChatNode, ChatNodeKind } from './chat-nodes.ts'
-import type {
-  ChatNodeProcessSource, ChatNodeSource, ChatSnapshot, ChatTurnProcessPresentation,
-} from './snapshot.ts'
+import type { ChatNodeProcessSource, ChatNodeSource, ChatSnapshot, ChatTurnProcessPresentation } from './snapshot.ts'
 import type { TurnProcessSpec } from './turn-process.ts'
 import type { PerformanceUsageMode } from '../../chat-settings.ts'
 
@@ -50,19 +66,12 @@ export type UsePresentation = SnapshotSelectorHook<ChatPresentationPolicy>
 export interface OpenFileOptions {
   /** 1-based line to reveal; absent = the file's beginning. */
   readonly line?: number
+  /** Markdown heading or block identifier, decoded from the link fragment. */
+  readonly anchor?: string
 }
 
-/** Owner currency of the completed-Turn extension chain. */
-export interface TurnTailOwnerProps {
-  turn: TurnLocation
-  seq: number
-  openFile: (path: string) => void
-}
+export type { TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 
-/** Owner currency of finalized-assistant actions. */
-export interface AssistantActionOwnerProps {
-  messageId: MessageId
-}
 
 /** Stable quota failure codes retained in the Session log; both raise the frame-wide notice. */
 export type QuotaNoticeCode = 'QUOTA' | 'ACCOUNT_QUOTA'
@@ -122,11 +131,10 @@ export interface QuotaNoticeInjected {
 }
 
 /** Full props of the Chat-owned frame-wide quota notice host. */
-export type QuotaNoticeHostProps =
-  PropsRuntime<'shell.overlay'>
-  & PropsLocale<'chat'>
-  & PropsRenderSlots<'shell.quota-notice'>
-  & InjectFace<QuotaNoticeInjected>
+export type QuotaNoticeHostProps = PropsRuntime<'shell.overlay'> &
+  PropsLocale<'chat'> &
+  PropsRenderSlots<'shell.quota-notice'> &
+  InjectFace<QuotaNoticeInjected>
 
 /** Optional prose file-mention provider consumed by Chat. */
 export interface ChatFileMentions {
@@ -238,7 +246,8 @@ export interface UserContentData {
 }
 
 /** Public content rendering input; reference renderers own their injected actions. */
-export interface UserContentInput extends Pick<ChatNodeOwnerProps, 'loadImage'>,
+export interface UserContentInput
+  extends Pick<ChatNodeOwnerProps, 'loadImage'>,
   Pick<UserTextInput, 'interactive' | 'ellipsis'> {
   readonly content: UserContentData
   /** Transform inputs passed unchanged to UserText, separate from summary and rendering props. */
@@ -264,8 +273,9 @@ export interface PresentationInjected {
 }
 
 /** Full props of one keyed Chat renderer. */
-export type ChatNodeViewProps<Kind extends ChatNodeKind = ChatNodeKind> =
-  PropsRuntime<'conversation.chat.node', Kind> & PropsLocale<'chat'> & PropsRenderFactories
+export type ChatNodeViewProps<Kind extends ChatNodeKind = ChatNodeKind> = PropsRuntime<'conversation.chat.node', Kind> &
+  PropsLocale<'chat'> &
+  PropsRenderFactories
 
 /** Command-row owner share. */
 export interface CommandRowOwnerProps {
@@ -329,8 +339,8 @@ export interface ChatViewInjected {
 export type ChatFlowDataInjected = Pick<ChatViewInjected, 'hooks' | 'keyedHooks'>
 
 /** Ordered rows and reconciled local echoes rendered inside one Chat viewport. */
-export interface ChatFlowOwnerProps extends Pick<ChatNodeOwnerProps,
-  'cwd' | 'openFile' | 'inspectCall' | 'forkAt' | 'loadImage' | 'fileMentions'> {
+export interface ChatFlowOwnerProps
+  extends Pick<ChatNodeOwnerProps, 'cwd' | 'openFile' | 'inspectCall' | 'forkAt' | 'loadImage' | 'fileMentions'> {
   readonly entries: readonly RenderEntry[]
   readonly pendingInputs: readonly (PendingSubmission | InboxState['next-step'][number])[]
   readonly lastInputTurn: number | undefined
@@ -338,25 +348,23 @@ export interface ChatFlowOwnerProps extends Pick<ChatNodeOwnerProps,
 }
 
 /** Full props of the Chat-owned flow renderer. */
-export type ChatFlowSlotProps =
-  PropsRuntime<'conversation.chat.flow'>
-  & PropsRenderSlots<'conversation.chat.node'>
-  & PropsRenderFactories
-  & PropsStore<ChatStore>
-  & InjectFace<ChatFlowDataInjected>
-  & PropsLocale<'chat'>
+export type ChatFlowSlotProps = PropsRuntime<'conversation.chat.flow'> &
+  PropsRenderSlots<'conversation.chat.node'> &
+  PropsRenderFactories &
+  PropsStore<ChatStore> &
+  InjectFace<ChatFlowDataInjected> &
+  PropsLocale<'chat'>
 
 /** Full Chat view props. */
-export type ChatViewSlotProps =
-  PropsRuntime<'conversation.view'>
-  & PropsRenderSlots<'conversation.chat.flow'>
-  & PropsStore<ChatStore>
-  & InjectFace<ChatViewInjected>
-  & PropsLocale<'chat'>
+export type ChatViewSlotProps = PropsRuntime<'conversation.view'> &
+  PropsRenderSlots<'conversation.chat.flow'> &
+  PropsStore<ChatStore> &
+  InjectFace<ChatViewInjected> &
+  PropsLocale<'chat'>
 
 /** Full props shared by the user and output image entries. */
-export type MessageImagesProps =
-  PropsRuntime<'conversation.chat.user.images' | 'conversation.chat.message.images'> & PropsRenderFactories
+export type MessageImagesProps = PropsRuntime<'conversation.chat.user.images' | 'conversation.chat.message.images'> &
+  PropsRenderFactories
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SessionStandardProps {
@@ -427,18 +435,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * values replace it. Contributions must preserve access to the original text.
      */
     'conversation.chat.reasoning.body': { kind: 'single'; scope: 'session'; owner: ReasoningBodyOwnerProps }
-    /**
-     * Ordered feature contributions before a completed Turn's action row. Each
-     * entry receives the Turn, closing sequence, and file opener. A fresh `id`
-     * adds an entry; entries without content return null.
-     */
-    'conversation.chat.turnTail': { kind: 'list'; scope: 'session'; owner: TurnTailOwnerProps }
-    /**
-     * Ordered actions for one finalized assistant message. Each entry receives
-     * the durable message id; a fresh `id` adds an action and reusing one replaces
-     * that entry. With no entries, the standard action row remains unchanged.
-     */
-    'conversation.chat.assistant-actions': { kind: 'list'; scope: 'session'; owner: AssistantActionOwnerProps }
     /**
      * Frame-wide quota notice chain. The Chat-owned host in `shell.overlay`
      * offers the one live notice; the first entry whose selector claims its

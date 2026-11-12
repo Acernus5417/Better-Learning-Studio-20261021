@@ -137,6 +137,10 @@ describe('ui-sidebar-right apply', () => {
       ['sidebar.right.pane.tab', GUIDE_ID, undefined, GuideBody],
       ['sidebar.right.pane.tab.title', GUIDE_ID, undefined, GuideTitle],
     ])
+    expect(seat('rightbar').children).toEqual({
+      'rightbar.session': { kind: 'single', scope: 'session' },
+      'rightbar.panel': { kind: 'keyed', scope: 'root' },
+    })
     // The panel declares the extension seats; the guide declares its chain child.
     expect(Object.keys(seat('rightbar.session').children as object)).toEqual([
       'sidebar.right.pane.tab', 'sidebar.right.pane.tab.title', 'sidebar.right.tab.menu.item',

@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { isAbsolute, join } from 'node:path'
 import type { CourseStage, CourseStageEvidence, CourseStageVerifier } from './course-workflow.ts'
+import { verifyCoursePresentations } from './course-presentation.ts'
 
 const execute = promisify(execFile)
 
@@ -45,27 +46,46 @@ function evidence(value: unknown, summary: string): CourseStageEvidence {
 }
 
 function scriptEnvironment(): NodeJS.ProcessEnv {
-  const safe = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
-    !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name)))
+  const safe = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !/(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/iu.test(name)),
+  )
   return { ...safe, PYTHONDONTWRITEBYTECODE: '1', PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
 }
 
-type CourseScript = 'convert_materials.py' | 'assemble_knowledge.py' | 'lesson_tasks.py'
-  | 'core_cards.py' | 'obsidian_links.py' | 'validate_package.py' | 'inventory_materials.py'
-  | 'office_render_requirements.py' | 'studio_teaching_design.py' | 'studio_teaching_units.py'
+type CourseScript =
+  | 'convert_materials.py'
+  | 'assemble_knowledge.py'
+  | 'lesson_tasks.py'
+  | 'core_cards.py'
+  | 'obsidian_links.py'
+  | 'validate_package.py'
+  | 'inventory_materials.py'
+  | 'office_render_requirements.py'
+  | 'studio_teaching_design.py'
+  | 'studio_teaching_units.py'
 
 /** Run one application-owned mechanical command without exposing process credentials. */
 export async function runCourseScript(
-  runtime: CourseVerifierRuntime, course: string, script: CourseScript, args: readonly string[],
+  runtime: CourseVerifierRuntime,
+  course: string,
+  script: CourseScript,
+  args: readonly string[],
 ): Promise<Record<string, unknown>> {
   let stdout: string
   try {
-    ({ stdout } = await execute(runtime.python, [join(runtime.scripts, script), '--course', course, ...args], {
-      windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024, env: scriptEnvironment(),
+    ;({ stdout } = await execute(runtime.python, [join(runtime.scripts, script), '--course', course, ...args], {
+      windowsHide: true,
+      timeout: 300_000,
+      maxBuffer: (args.includes('presentation-candidate') || args.includes('presentation-evidence')) ? 8 * 1024 * 1024 : 1024 * 1024,
+      env: scriptEnvironment(),
     }))
   } catch (error) {
-    const report = record(error) && typeof error.stdout === 'string' && error.stdout.trim() !== ''
-      ? error.stdout.trim().slice(0, 4000) : error instanceof Error ? error.message : String(error)
+    const report =
+      record(error) && typeof error.stdout === 'string' && error.stdout.trim() !== ''
+        ? error.stdout.trim().slice(0, 4000)
+        : error instanceof Error
+          ? error.message
+          : String(error)
     throw new Error(`course script: ${script} failed: ${report}`)
   }
   const value: unknown = JSON.parse(stdout)
@@ -77,14 +97,18 @@ export async function runCourseScript(
 
 /** Run the native transcription ledger script. */
 export async function runCourseMaterials(
-  runtime: CourseVerifierRuntime, course: string, args: readonly string[],
+  runtime: CourseVerifierRuntime,
+  course: string,
+  args: readonly string[],
 ): Promise<Record<string, unknown>> {
   return runCourseScript(runtime, course, 'convert_materials.py', args)
 }
 
 /** Inventory only paths copied from admitted human attachments. */
 export async function runCourseInventory(
-  runtime: CourseVerifierRuntime, course: string, paths: readonly string[],
+  runtime: CourseVerifierRuntime,
+  course: string,
+  paths: readonly string[],
 ): Promise<{ sources: number }> {
   if (paths.length === 0 || paths.some(path => !isAbsolute(path))) {
     throw new Error('course inventory: explicit absolute source paths are required')
@@ -96,16 +120,30 @@ export async function runCourseInventory(
   return { sources: result.sources }
 }
 
-async function accepted(runtime: CourseVerifierRuntime, course: string, script: string, args: string[]): Promise<boolean> {
+async function accepted(
+  runtime: CourseVerifierRuntime,
+  course: string,
+  script: string,
+  args: string[],
+): Promise<boolean> {
   try {
     const { stdout } = await execute(runtime.python, [join(runtime.scripts, script), '--course', course, ...args], {
-      windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024,
+      windowsHide: true,
+      timeout: 300_000,
+      maxBuffer: 1024 * 1024,
       env: scriptEnvironment(),
     })
     // The scripts sometimes return a compact report path in bounded mode.
     const result: unknown = JSON.parse(stdout)
-    if (!record(result) || result.error !== undefined || result.failure_kind !== undefined
-      || result.passed === false || result.complete === false || result.ready === false) return false
+    if (
+      !record(result) ||
+      result.error !== undefined ||
+      result.failure_kind !== undefined ||
+      result.passed === false ||
+      result.complete === false ||
+      result.ready === false
+    )
+      return false
     if (Array.isArray(result.errors)) return result.errors.length === 0
     return result.errors === undefined || result.errors === 0
   } catch (error) {
@@ -121,12 +159,21 @@ async function accepted(runtime: CourseVerifierRuntime, course: string, script: 
  * @param course - Absolute course directory.
  * @returns The validator's persisted checklist and next-action instructions.
  */
-export async function inspectCoursePlan(runtime: CourseVerifierRuntime, course: string): Promise<Record<string, unknown>> {
+export async function inspectCoursePlan(
+  runtime: CourseVerifierRuntime,
+  course: string,
+): Promise<Record<string, unknown>> {
   try {
-    await execute(runtime.python, [join(runtime.scripts, 'validate_package.py'), '--course', course, '--mode', 'plan'], {
-      windowsHide: true, timeout: 300_000, maxBuffer: 1024 * 1024,
-      env: scriptEnvironment(),
-    })
+    await execute(
+      runtime.python,
+      [join(runtime.scripts, 'validate_package.py'), '--course', course, '--mode', 'plan'],
+      {
+        windowsHide: true,
+        timeout: 300_000,
+        maxBuffer: 1024 * 1024,
+        env: scriptEnvironment(),
+      },
+    )
   } catch (error) {
     if (!record(error) || error.code !== 1) throw error
   }
@@ -139,16 +186,34 @@ export async function inspectCoursePlan(runtime: CourseVerifierRuntime, course: 
 
 /** Persist the confirmed intake bits through the existing progress command. */
 export async function writeCourseConfirmation(runtime: CourseVerifierRuntime, course: string): Promise<void> {
-  if (!await accepted(runtime, course, 'convert_materials.py', [
-    'progress', '--goal', 'true', '--materials', 'true', '--baseline', 'true',
-  ])) throw new Error('course verifier: could not persist intake confirmation')
+  if (
+    !(await accepted(runtime, course, 'convert_materials.py', [
+      'progress',
+      '--goal',
+      'true',
+      '--materials',
+      'true',
+      '--baseline',
+      'true',
+    ]))
+  )
+    throw new Error('course verifier: could not persist intake confirmation')
 }
 
 /** Keep the legacy progress receipt aligned when new materials reopen intake. */
 export async function resetCourseConfirmation(runtime: CourseVerifierRuntime, course: string): Promise<void> {
-  if (!await accepted(runtime, course, 'convert_materials.py', [
-    'progress', '--goal', 'false', '--materials', 'false', '--baseline', 'false',
-  ])) throw new Error('course verifier: could not reset intake confirmation')
+  if (
+    !(await accepted(runtime, course, 'convert_materials.py', [
+      'progress',
+      '--goal',
+      'false',
+      '--materials',
+      'false',
+      '--baseline',
+      'false',
+    ]))
+  )
+    throw new Error('course verifier: could not reset intake confirmation')
 }
 
 async function verifyMaterials(course: string): Promise<CourseStageEvidence | null> {
@@ -157,47 +222,64 @@ async function verifyMaterials(course: string): Promise<CourseStageEvidence | nu
   if (sources === null || sources.length === 0) return null
   const checked: string[][] = []
   for (const source of sources) {
-    if (typeof source.id !== 'string' || typeof source.path !== 'string' || !isAbsolute(source.path)
-      || typeof source.sha256 !== 'string' || !/^[a-f0-9]{64}$/iu.test(source.sha256)) return null
-    if (await shaFile(source.path) !== source.sha256) return null
+    if (
+      typeof source.id !== 'string' ||
+      typeof source.path !== 'string' ||
+      !isAbsolute(source.path) ||
+      typeof source.sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/iu.test(source.sha256)
+    )
+      return null
+    if ((await shaFile(source.path)) !== source.sha256) return null
     checked.push([source.id, source.path, source.sha256])
   }
   return evidence(checked, `已核对 ${sources.length} 份原始资料`)
 }
 
 async function verifyTranscription(
-  runtime: CourseVerifierRuntime, course: string, model: string | null,
+  runtime: CourseVerifierRuntime,
+  course: string,
+  model: string | null,
 ): Promise<CourseStageEvidence | null> {
   const ledger = await json(join(course, '_工作区', '转写任务.json'))
   const sources = rows(ledger?.sources)
   if (sources === null || sources.length === 0) return null
-  const vision = sources.some(source => rows(source.units)?.some(unit => unit.processing_route === 'vision') === true)
+  const vision = sources.some(
+    source => rows(source.units)?.some(unit => unit.processing_route === 'vision') === true,
+  )
   if (vision) {
     const state = await json(join(course, '_工作区', '能力探针', 'current.json'))
     const probe = record(state?.probe) ? state.probe : null
-    if (model === null || probe?.passed !== true || probe.model !== model || state?.capability_blocked === true) return null
+    if (model === null || probe?.passed !== true || probe.model !== model || state?.capability_blocked === true)
+      return null
   }
-  if (!await accepted(runtime, course, 'convert_materials.py', ['check'])) return null
+  if (!(await accepted(runtime, course, 'convert_materials.py', ['check']))) return null
   const index = await shaFile(join(course, '_工作区', '转写索引.json'))
   return evidence([index, sources.map(source => [source.id, source.transcript_hash])], '来源转写及视觉探针已核验')
 }
 
 async function verifyKnowledge(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
-  if (!await accepted(runtime, course, 'studio_teaching_design.py', ['validate', '--require-config'])) return null
-  if (!await accepted(runtime, course, 'assemble_knowledge.py', ['--check'])) return null
+  if (!(await accepted(runtime, course, 'studio_teaching_design.py', ['validate', '--require-config']))) return null
+  if (!(await accepted(runtime, course, 'assemble_knowledge.py', ['--check']))) return null
   return evidence(await shaFile(join(course, '知识内容.md')), '完整知识库已核验')
 }
 
 async function verifyPath(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
-  if (!await accepted(runtime, course, 'studio_teaching_design.py', ['validate', '--require-config'])) return null
-  if (!await accepted(runtime, course, 'studio_teaching_units.py', ['validate'])) return null
+  if (!(await accepted(runtime, course, 'studio_teaching_design.py', ['validate', '--require-config']))) return null
+  if (!(await accepted(runtime, course, 'studio_teaching_units.py', ['validate']))) return null
   const path = await readFile(join(course, '学习路径.md'), 'utf8')
   const index = await json(join(course, '_工作区', '路径索引.json'))
   const chapterIndex = await json(join(course, '_工作区', '章节索引.json'))
   const steps = rows(index?.steps)
   const lessons = rows(chapterIndex?.lessons)
-  if (!path.includes('<!-- BL-PATH:BEGIN ') || steps === null || steps.length === 0
-    || lessons === null || lessons.length === 0) return null
+  if (
+    !path.includes('<!-- BL-PATH:BEGIN ') ||
+    steps === null ||
+    steps.length === 0 ||
+    lessons === null ||
+    lessons.length === 0
+  )
+    return null
   const assigned = new Set<string>()
   for (const step of steps) {
     if (!Array.isArray(step.lessons)) return null
@@ -207,31 +289,58 @@ async function verifyPath(runtime: CourseVerifierRuntime, course: string): Promi
     }
   }
   if (lessons.some(lesson => typeof lesson.id !== 'string' || !assigned.has(lesson.id))) return null
-  return evidence([createHash('sha256').update(path).digest('hex'),
-    steps.map(step => [step.id, step.lessons]), lessons.map(lesson => lesson.id)], '学习路径覆盖全部讲义章节')
+  return evidence(
+    [
+      createHash('sha256').update(path).digest('hex'),
+      steps.map(step => [step.id, step.lessons]),
+      lessons.map(lesson => lesson.id),
+    ],
+    '学习路径覆盖全部讲义章节',
+  )
 }
 
 async function verifyLessons(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
-  if (!await accepted(runtime, course, 'lesson_tasks.py', ['check'])) return null
+  if (!(await accepted(runtime, course, 'lesson_tasks.py', ['check']))) return null
   const ledger = await json(join(course, '_工作区', '讲义任务.json'))
   const lessons = rows(ledger?.lessons)
   if (lessons === null || lessons.length === 0) return null
-  return evidence(lessons.map(lesson => [lesson.id, lesson.semantic_hash ?? lesson.output_hash]),
-    `已提交并核验 ${lessons.length} 讲`)
+  const paths = lessons.map(lesson => lesson.path)
+  if (!paths.every((path): path is string => typeof path === 'string')) return null
+  const presentation = await verifyCoursePresentations(course, paths)
+  if (presentation === null) return null
+  if (!presentation.enabled) return evidence(lessons.map(lesson => [lesson.id, lesson.semantic_hash ?? lesson.output_hash]), `已提交并核验 ${lessons.length} 讲`)
+  return evidence(
+    [lessons.map(lesson => [lesson.id, lesson.semantic_hash ?? lesson.output_hash]), presentation],
+    `已提交并核验 ${lessons.length} 讲；语义排版 ${presentation.passed}，基础排版 ${presentation.basic}`,
+  )
 }
 
 async function verifyCards(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
-  if (!await accepted(runtime, course, 'core_cards.py', ['check'])) return null
+  if (!(await accepted(runtime, course, 'core_cards.py', ['check']))) return null
   const state = await json(join(course, '_工作区', '核心卡片状态.json'))
   if (state?.status !== 'complete' || !Array.isArray(state.cards)) return null
-  return evidence([state.cards, state.cards_hash], `已核验 ${state.cards.length} 张核心卡片`)
+  let path = '核心知识点.md'
+  try { await readFile(join(course, path), 'utf8') }
+  catch (error) { if (!record(error) || error.code !== 'ENOENT') throw error; path = '课程文档/核心知识点.md' }
+  const presentation = await verifyCoursePresentations(course, [path])
+  if (presentation === null) return null
+  if (!presentation.enabled) return evidence([state.cards, state.cards_hash], `已核验 ${state.cards.length} 张核心卡片`)
+  return evidence([state.cards, state.cards_hash, presentation], `已核验 ${state.cards.length} 张核心卡片；语义排版 ${presentation.passed}，基础排版 ${presentation.basic}`)
 }
 
 async function verifyDelivery(runtime: CourseVerifierRuntime, course: string): Promise<CourseStageEvidence | null> {
-  if (!await accepted(runtime, course, 'validate_package.py', ['--mode', 'packaged'])) return null
+  if (!(await accepted(runtime, course, 'validate_package.py', ['--mode', 'packaged']))) return null
   const report = await json(join(course, '_工作区', '打包检查.json'))
   const snapshot = await json(join(course, '_工作区', '链接校验报告.json'))
-  if (report?.mode !== 'packaged' || report.passed !== true || !record(snapshot?.files)) return null
+  if (
+    report?.mode !== 'packaged' ||
+    report.passed !== true ||
+    report.integrity !== 'metadata-v1' ||
+    snapshot?.schema_version !== 2 ||
+    snapshot.integrity !== 'metadata-v1' ||
+    !record(snapshot.files)
+  )
+    return null
   return evidence([snapshot.files, report.counts, report.graph_policy_version], '课程包通过 packaged 校验')
 }
 
@@ -248,23 +357,33 @@ export function createCourseStageVerifier(runtime: CourseVerifierRuntime): Cours
   return async (course, stage: CourseStage, model) => {
     try {
       if (stage === 'materials') return await verifyMaterials(course)
-      if (stage !== 'delivery' && await verifyMaterials(course) === null) return null
-      if (stage !== 'delivery' && stage !== 'transcription'
-        && await verifyTranscription(runtime, course, model) === null) return null
+      if (stage !== 'delivery' && (await verifyMaterials(course)) === null) return null
+      if (
+        stage !== 'delivery' &&
+        stage !== 'transcription' &&
+        (await verifyTranscription(runtime, course, model)) === null
+      )
+        return null
       if (stage === 'path' || stage === 'lessons' || stage === 'cards') {
-        if (await verifyKnowledge(runtime, course) === null) return null
+        if ((await verifyKnowledge(runtime, course)) === null) return null
       }
       if (stage === 'lessons' || stage === 'cards') {
-        if (await verifyPath(runtime, course) === null) return null
+        if ((await verifyPath(runtime, course)) === null) return null
       }
-      if (stage === 'cards' && await verifyLessons(runtime, course) === null) return null
+      if (stage === 'cards' && (await verifyLessons(runtime, course)) === null) return null
       switch (stage) {
-        case 'transcription': return await verifyTranscription(runtime, course, model)
-        case 'knowledge': return await verifyKnowledge(runtime, course)
-        case 'path': return await verifyPath(runtime, course)
-        case 'lessons': return await verifyLessons(runtime, course)
-        case 'cards': return await verifyCards(runtime, course)
-        case 'delivery': return await verifyDelivery(runtime, course)
+        case 'transcription':
+          return await verifyTranscription(runtime, course, model)
+        case 'knowledge':
+          return await verifyKnowledge(runtime, course)
+        case 'path':
+          return await verifyPath(runtime, course)
+        case 'lessons':
+          return await verifyLessons(runtime, course)
+        case 'cards':
+          return await verifyCards(runtime, course)
+        case 'delivery':
+          return await verifyDelivery(runtime, course)
       }
     } catch (error) {
       if (record(error) && error.code === 'ENOENT') return null

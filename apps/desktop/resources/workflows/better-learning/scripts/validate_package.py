@@ -153,6 +153,9 @@ def validate(course: Path, mode: str = 'final') -> dict:
         raise ValueError('Unknown validator mode: ' + mode)
     if mode == 'plan':
         return plan_report(course)
+    if mode == 'packaged':
+        from package_receipt import packaged_report
+        return packaged_report(course.resolve())
     phase = {'legacy-report': 'working', 'staged': 'staged'}.get(mode, mode)
     course = course.resolve()
     if mode in {'final', 'packaged'}:
@@ -558,7 +561,7 @@ def validate(course: Path, mode: str = 'final') -> dict:
               'errors': list(dict.fromkeys(errors)), 'warnings': warnings,
               'layout': course_config(course).get('layout', 'working'),
               'graph_policy_version': course_config(course).get('graph_policy_version')}
-    if v2 and mode == 'final' and not errors:
+    if mode == 'final' and not errors:
         record_snapshot(course, 'final')
         report['snapshot'] = SNAPSHOT
     if v2 and mode == 'packaged':
@@ -574,20 +577,10 @@ def snapshot_receipt(course):
     return read_json(path) if path.exists() else {}
 
 
-def record_snapshot(course: Path, mode: str = 'final') -> dict:
-    """Write the deliverable hash snapshot used to detect post-stage edits.
-
-    `package` moves documents and rewrites their links, so it refreshes the
-    snapshot as its last step; `--mode packaged` then verifies the delivered
-    files are exactly those recorded and that every target still resolves.
-    """
-    course = course.resolve()
-    registry_obj = Registry(course) if is_v2(course) else None
-    snapshot = {'schema_version': 1, 'mode': mode, 'recorded_at': utc_now(),
-                'files': {relative: sha256(course / relative) for relative in learner_texts(course)},
-                'registry_revision': registry_obj.revision() if registry_obj else None}
-    write_json(course / SNAPSHOT, snapshot)
-    return snapshot
+def record_snapshot(course: Path, mode: str = 'final', links_checked=False) -> dict:
+    """Record metadata after validated stages, without a global deliverable hash pass."""
+    from package_receipt import record_snapshot as record
+    return record(course, mode, links_checked)
 
 
 def learner_texts(course):
@@ -638,23 +631,9 @@ def validate_source_shells(course):
 
 
 def validate_packaged(course, snapshot, errors):
-    """Packaged layout: targets must re-resolve from retained receipts."""
-    from obsidian_links import validate_obsidian_links
-    problems = []
-    if not snapshot:
-        problems.append(code('STALE_MANIFEST', '缺少 final 阶段快照，无法证明打包后目标仍可解析'))
-    for relative, digest in (snapshot.get('files') or {}).items():
-        path = find_document(course, relative.split('/')[-1]) if not (course / relative).exists() else course / relative
-        if not path.is_file():
-            problems.append(code('MISSING_TARGET_BLOCK', '打包后缺少文件：' + relative))
-            continue
-        import hashlib
-        current = hashlib.sha256(path.read_bytes()).hexdigest()
-        if current != digest:
-            problems.append(code('STALE_MANIFEST', '打包后文件内容与 final 快照不一致：' + relative))
-    for error in validate_obsidian_links(course, phase='packaged'):
-        problems.append(code('LINKS', error))
-    return problems
+    """Read the lightweight packaged result; accepted link checks are reused while metadata is unchanged."""
+    from package_receipt import packaged_report
+    return packaged_report(course)['errors']
 
 
 def main() -> int:

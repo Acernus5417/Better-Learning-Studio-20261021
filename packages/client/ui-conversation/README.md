@@ -7,6 +7,8 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+Specialized Conversation owners can claim decoded local file navigation through the `conversation/file-open` bail event. Returning a promise owns the open operation, including its line or Markdown anchor; returning undefined retains the generic file-preview route.
+
 Desktop product events use the optional [product analytics service](../product-analytics/README.md); ordinary Web interactions are excluded.
 
 ## Summary
@@ -194,3 +196,5 @@ None; Conversation assembly and browser input state do not alter provider-side p
 None.
 
 </details>
+
+The `conversation.chat.assistant-actions` list Slot receives one durable `messageId` for finalized-answer extensions. Its declaration belongs to Conversation; Chat retains its public owner-type re-export. Studio keeps the same composer instance in a separate footer outside the transcript scroller, so process disclosure, scroll and viewport resizing cannot move the input into message flow. Other deployments retain the shared scrolling composer.

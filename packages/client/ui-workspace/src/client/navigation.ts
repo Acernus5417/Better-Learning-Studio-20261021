@@ -160,6 +160,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
+  private newSessionHandler: (() => void) | undefined
+
+  /**
+ * Route new-session gestures through the course creation surface.
+ * @param handler - Course-creation action.
+ * @returns A disposer that removes this exact handler.
+ */
+  setNewSessionHandler(handler: () => void): () => void {
+    this.newSessionHandler = handler
+    return () => { if (this.newSessionHandler === handler) this.newSessionHandler = undefined }
+  }
 
   /**
    * @param ctx - Client root Context.
@@ -318,6 +329,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void {
+    if (this.newSessionHandler !== undefined) { this.newSessionHandler(); return }
     const { agentPreset, ...draft } = options ?? {}
     const draftOptions = options === undefined ? undefined : draft
     const initializeDraft = draftOptions !== undefined
@@ -406,6 +418,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   private watchNavigation(): () => void {
+    if ((globalThis as { __BLS_STUDIO__?: boolean }).__BLS_STUDIO__ === true) return () => {}
     let initial: 'waiting' | 'connecting' | 'done' = 'waiting'
     const reconcile = (): void => {
       if (this.lifetime.signal.aborted) return

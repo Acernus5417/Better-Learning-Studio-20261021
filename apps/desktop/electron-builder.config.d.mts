@@ -18,6 +18,7 @@ export interface DesktopElectronBuilderConfig {
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },
     { readonly from: string, readonly to: 'workflows' },
+    { readonly from: string, readonly to: 'skills' },
     { readonly from: string, readonly to: 'icon.png' },
     { readonly from: string, readonly to: 'icon.svg' },
     ...{ readonly from: string, readonly to: 'icon.ico' | 'tray.ico' }[],
