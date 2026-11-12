@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SubagentRun } from '@deepseek-ai/dsh-subagent'
+import type { SubagentActivation } from '@deepseek-ai/dsh-subagent'
 import type { MaterialsCommand } from './course-transcription-batch.ts'
 
 /** The Host reads only the generated prompt, never the challenge image or expected hashes. */
@@ -12,13 +12,13 @@ export class CourseVisionProbeService {
 
   constructor(
     private readonly command: MaterialsCommand,
-    private readonly startChild: (parent: Agent, prompt: string, signal: AbortSignal) => Promise<SubagentRun>,
+    private readonly startChild: (parent: Agent, prompt: string, signal: AbortSignal) => Promise<SubagentActivation>,
   ) {}
 
   async run(course: string, model: string, parent: Agent, signal: AbortSignal): Promise<Record<string, unknown>> {
     if (this.active.has(course)) throw new Error('course vision probe: already running')
     this.active.add(course)
-    let run: SubagentRun | undefined
+    let run: SubagentActivation | undefined
     try {
       signal.throwIfAborted()
       const challenge = await this.command(course, ['probe-start', '--host', 'dsh', '--model', model])
@@ -31,7 +31,7 @@ export class CourseVisionProbeService {
       }
       const prompt = await readFile(promptPath, 'utf8')
       run = await this.startChild(parent, prompt, signal)
-      const childId = run.id
+      const childId = run.childId
       const result = await run.result
       await run.dispose()
       run = undefined

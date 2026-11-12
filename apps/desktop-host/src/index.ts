@@ -16,6 +16,7 @@ import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
 import { installCourseWorkflowApi } from './course-workflow-api.ts'
+import { installCourseLibraryApi } from './course-library-api.ts'
 import { desktopWebPort } from './desktop-web-port.ts'
 
 function positiveMilliseconds(name: string, fallback: number): number {
@@ -37,7 +38,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
-    args: ['--no-open', '--port', String(await desktopWebPort(process.env.BLS_WEB_PORT))],
+    args: ['--no-open', '--host', '127.0.0.1', '--port', String(await desktopWebPort(process.env.BLS_WEB_PORT))],
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
         command: process.execPath,
@@ -108,6 +109,8 @@ async function main(): Promise<void> {
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
   const workflowRoot = process.env.BLS_WORKFLOW_ROOT
+  const courseRoot = process.env.BLS_COURSE_ROOT
+  if (courseRoot !== undefined) await installCourseLibraryApi(ctx, courseRoot)
   if (workflowRoot !== undefined) {
     const source = process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime')
     await installCourseWorkflowApi(ctx, source,
@@ -119,7 +122,7 @@ async function main(): Promise<void> {
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })
-  const url = ctx.connection.authenticatedUrl(`http://127.0.0.1:${String(ctx.webServer.port)}`)
+  const url = ctx.connection.authenticatedUrl(`${ctx.webServer.protocol}//127.0.0.1:${String(ctx.webServer.port)}`)
   if (process.connected) process.send?.({ type: 'ready', url, injections: ctx.webServer.collectIndexInjections() }, (error) => { if (error !== null) console.error(error) })
 }
 

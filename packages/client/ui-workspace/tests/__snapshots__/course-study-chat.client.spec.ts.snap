@@ -1,0 +1,103 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`automatic study action Chat presentation > hides automatic prompts when registered after the ordinary input definition 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Here is the explanation.",
+      },
+    ],
+    "finalNode": {
+      "blocks": [
+        {
+          "kind": "text",
+          "text": "Here is the explanation.",
+        },
+      ],
+      "kind": "assistant",
+      "messageId": "answer",
+      "seq": 3,
+      "step": 1,
+      "time": 1700000000003,
+      "timing": {
+        "completedTime": 1700000000003,
+        "firstTokenTime": null,
+        "stepStartTime": 1700000000001,
+      },
+      "turn": 1,
+      "usage": undefined,
+    },
+    "status": "settled",
+    "step": 1,
+    "time": 1700000000003,
+    "turn": 1,
+  },
+  {
+    "content": [
+      {
+        "text": "Please explain the example again.",
+        "type": "text",
+      },
+    ],
+    "kind": "user",
+    "seq": 4,
+    "source": {
+      "kind": "user",
+    },
+    "time": 1700000000004,
+  },
+]
+`;
+
+exports[`automatic study action Chat presentation > hides automatic prompts when registered before the ordinary input definition 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Here is the explanation.",
+      },
+    ],
+    "finalNode": {
+      "blocks": [
+        {
+          "kind": "text",
+          "text": "Here is the explanation.",
+        },
+      ],
+      "kind": "assistant",
+      "messageId": "answer",
+      "seq": 3,
+      "step": 1,
+      "time": 1700000000003,
+      "timing": {
+        "completedTime": 1700000000003,
+        "firstTokenTime": null,
+        "stepStartTime": 1700000000001,
+      },
+      "turn": 1,
+      "usage": undefined,
+    },
+    "status": "settled",
+    "step": 1,
+    "time": 1700000000003,
+    "turn": 1,
+  },
+  {
+    "content": [
+      {
+        "text": "Please explain the example again.",
+        "type": "text",
+      },
+    ],
+    "kind": "user",
+    "seq": 4,
+    "source": {
+      "kind": "user",
+    },
+    "time": 1700000000004,
+  },
+]
+`;

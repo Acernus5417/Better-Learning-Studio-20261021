@@ -1,0 +1,222 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`web e2e: Studio model request > logs independent tool-less presentation requests before content publication 1`] = `
+{
+  "childPresets": [
+    "better-learning-presentation",
+    "better-learning-presentation",
+  ],
+  "content": "# 定义
+
+函数的输出是唯一的。
+",
+  "promptsLogged": [
+    true,
+    true,
+  ],
+  "toolCounts": [
+    0,
+    0,
+  ],
+}
+`;
+
+exports[`web e2e: Studio model request > renders a course graph with orphan files off and a fixed settings entry 1`] = `
+{
+  "buttons": [
+    "Refresh",
+    "Outline",
+    "Backlinks",
+    "File graph",
+    "Open learning assistant",
+    "Collapse right sidebar",
+    "Graph settings",
+  ],
+  "orphan": "false",
+  "rendered": "2 nodes · 1 links",
+  "switches": [
+    "Tags",
+    "Attachments",
+    "Existing notes only",
+    "Orphan files",
+    "Arrows",
+  ],
+}
+`;
+
+exports[`web e2e: Studio model request > sends a model request and saves its answer under better-learning 1`] = `
+{
+  "answer": "Studio model request accepted.",
+  "eventTypes": [
+    "permission/preset",
+    "sandbox/mode",
+    "approval/policy",
+    "agent/inbox/spliced",
+    "turn/start",
+    "agent/inbox/spliced",
+    "step/start",
+    "system/message",
+    "user/message",
+    "user/message",
+    "user/message",
+    "request/header",
+    "request/context",
+    "session/title",
+    "assistant/message",
+    "step/end",
+    "turn/end",
+  ],
+  "preset": "better-learning",
+  "tools": [
+    "ask_user_question",
+    "course_read",
+    "course_workflow",
+    "create_goal",
+    "edit",
+    "exit_plan_mode",
+    "get_goal",
+    "glob",
+    "grep",
+    "interrupt_agent",
+    "job_kill",
+    "job_list",
+    "job_output",
+    "list_agents",
+    "present",
+    "pwsh",
+    "read",
+    "read_image",
+    "schedule_create",
+    "schedule_delete",
+    "schedule_list",
+    "schedule_update",
+    "send_message",
+    "subagent",
+    "todo_write",
+    "update_goal",
+    "web_fetch",
+    "web_search",
+    "workflow",
+    "working_directory",
+    "write",
+  ],
+}
+`;
+
+exports[`web e2e: Studio model request > sends a model request and saves its answer under better-learning-presentation 1`] = `
+{
+  "answer": "Studio model request accepted.",
+  "eventTypes": [
+    "permission/preset",
+    "sandbox/mode",
+    "approval/policy",
+    "agent/inbox/spliced",
+    "turn/start",
+    "agent/inbox/spliced",
+    "step/start",
+    "system/message",
+    "user/message",
+    "user/message",
+    "request/header",
+    "request/context",
+    "session/title",
+    "assistant/message",
+    "step/end",
+    "turn/end",
+  ],
+  "preset": "better-learning-presentation",
+  "tools": [],
+}
+`;
+
+exports[`web e2e: Studio model request > sends a model request and saves its answer under better-learning-probe 1`] = `
+{
+  "answer": "Studio model request accepted.",
+  "eventTypes": [
+    "permission/preset",
+    "sandbox/mode",
+    "approval/policy",
+    "agent/inbox/spliced",
+    "turn/start",
+    "agent/inbox/spliced",
+    "step/start",
+    "system/message",
+    "user/message",
+    "user/message",
+    "request/header",
+    "request/context",
+    "session/title",
+    "assistant/message",
+    "step/end",
+    "turn/end",
+  ],
+  "preset": "better-learning-probe",
+  "tools": [
+    "read_image",
+    "write",
+  ],
+}
+`;
+
+exports[`web e2e: Studio model request > sends a model request and saves its answer under better-learning-study 1`] = `
+{
+  "answer": "Studio model request accepted.",
+  "eventTypes": [
+    "permission/preset",
+    "sandbox/mode",
+    "approval/policy",
+    "agent/inbox/spliced",
+    "turn/start",
+    "agent/inbox/spliced",
+    "step/start",
+    "system/message",
+    "user/message",
+    "user/message",
+    "request/header",
+    "request/context",
+    "session/title",
+    "assistant/message",
+    "step/end",
+    "turn/end",
+  ],
+  "preset": "better-learning-study",
+  "tools": [
+    "course_read",
+    "study_show",
+    "study_skill",
+    "web_fetch",
+    "web_search",
+  ],
+}
+`;
+
+exports[`web e2e: Studio model request > sends a model request and saves its answer under better-learning-vision 1`] = `
+{
+  "answer": "Studio model request accepted.",
+  "eventTypes": [
+    "permission/preset",
+    "sandbox/mode",
+    "approval/policy",
+    "agent/inbox/spliced",
+    "turn/start",
+    "agent/inbox/spliced",
+    "step/start",
+    "system/message",
+    "user/message",
+    "user/message",
+    "request/header",
+    "request/context",
+    "session/title",
+    "assistant/message",
+    "step/end",
+    "turn/end",
+  ],
+  "preset": "better-learning-vision",
+  "tools": [
+    "edit",
+    "read",
+    "read_image",
+    "write",
+  ],
+}
+`;

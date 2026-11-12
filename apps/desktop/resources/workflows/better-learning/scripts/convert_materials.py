@@ -743,29 +743,21 @@ def package(course, dry_run=False):
     这是终态动作——被清理的是已合成的中间产物；结构检查结果已保存在
     _工作区/结构检查.json，打包后不再重复校验。
     """
-    from assemble_knowledge import require_knowledge
+    from package_receipt import require_final, record_snapshot, packaged_report, changed_paths
     from watchdog import is_running
-    require_knowledge(course)
+    final_report = require_final(course)
+    previous_receipt = read_json(course / '_工作区/链接校验报告.json')
     if is_running(course):
         raise ValueError('看门狗进程仍在运行；转写阶段结束后先运行 '
                          '`watchdog.py --course COURSE stop`，再打包')
-    data = load(course)
+    data = load_ledger(course)
     active = [b['active_member'] for s in data['sources'] for b in s['batches'] if b.get('active_member')]
     if active:
         raise ValueError('仍有活跃成员租约；确认这些成员已停止并运行 recover：' + ', '.join(active))
-    errors = check(course)
-    if errors:
-        raise ValueError('全部单元完成并合成后才允许打包：' + '; '.join(errors))
 
     def size(path):
         return sum(p.stat().st_size for p in path.rglob('*') if p.is_file())
 
-    from obsidian_links import enabled
-    if enabled(course):
-        from validate_package import validate
-        report = validate(course)
-        if not report['passed']: raise ValueError('最终验收未通过：' + '; '.join(report['errors']))
-        write_json(course / '_工作区/结构检查.json', report)
     before = size(course)
     removed = []
     for name in PURGE:
@@ -787,29 +779,43 @@ def package(course, dry_run=False):
         rewrite_course(course, {k.removesuffix('.md'): v.removesuffix('.md') for k, v in moves.items()})
         build_map(course, moves)
         from quality_gates import relocate
-        relocate(course, moves)
+        changed = changed_paths(course, previous_receipt, moves)
+        relocate(course, moves, changed_paths=changed)
         from lesson_tasks import record_link_relocation
-        record_link_relocation(course, {k.removesuffix('.md'): v.removesuffix('.md') for k, v in moves.items()})
-        # Deliverables were just moved and relinked: refresh the receipt the
-        # packaged check compares against, then verify targets still resolve.
-        from validate_package import record_snapshot
-        record_snapshot(course, 'packaged')
+        record_link_relocation(course, {k.removesuffix('.md'): v.removesuffix('.md') for k, v in moves.items()}, changed_paths=changed)
         link_errors = validate_obsidian_links(course, phase='packaged')
         if link_errors: raise ValueError('打包后链接检查失败：' + '; '.join(link_errors))
-        from validate_package import validate as validate_all
         from quality_gates import enabled as bounded_enabled
         if bounded_enabled(course):
             config_path = course / '_工作区/课程配置.json'
             config_data = read_json(config_path)
             config_data['layout'] = 'packaged'
             write_json(config_path, config_data)
-        report = validate_all(course, 'packaged')
+        record_snapshot(course, 'packaged', links_checked=True)
+        report = packaged_report(course)
         if not report['passed']:
             raise ValueError('打包后复验未通过：' + '; '.join(report['errors']))
         write_json(course / '_工作区/打包回执.json',
-                   {'schema_version': 1, 'packaged_at': now(), 'moves': moves,
+                   {'schema_version': 2, 'integrity': 'metadata-v1', 'packaged_at': now(), 'moves': moves,
                     'report': {'passed': report['passed'], 'counts': report.get('counts')},
                     'layout': 'packaged'})
+    else:
+        from validate_package import learner_texts, destinations, find_document
+        link_errors = []
+        for relative, text in learner_texts(course).items():
+            for destination in destinations(text):
+                parsed = urlsplit(destination)
+                if parsed.scheme or parsed.netloc or not parsed.path:
+                    continue
+                target = (course / posixpath.dirname(relative) / unquote(parsed.path)).resolve()
+                if not target.is_relative_to(course.resolve()) or not target.is_file():
+                    link_errors.append(relative + ': ' + destination)
+        if link_errors: raise ValueError('打包后链接检查失败：' + '; '.join(link_errors))
+        record_snapshot(course, 'packaged', links_checked=True)
+        report = packaged_report(course)
+        write_json(course / '_工作区/打包回执.json', {'schema_version': 2, 'packaged_at': now(),
+                   'moves': moves, 'report': {'passed': report['passed'], 'counts': final_report.get('counts')},
+                   'integrity': 'metadata-v1', 'layout': 'packaged'})
     # The package operation has its own internal check, but delivery remains
     # pending until validate_package.py --mode packaged writes its receipt.
     # Persist that exact next step so a restart does not show an obsolete

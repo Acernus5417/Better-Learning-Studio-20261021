@@ -12,8 +12,8 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'bls-development-runtime-'))
   roots.push(root)
-  const inputs = { runtime: join(root, 'runtime'), officeAssets: join(root, 'office'), version: '0.1.7-rc.2',
-    target: 'win-x64' as const, pnpmVersion: '11.7.0' }
+  const inputs = { runtime: join(root, 'runtime'), officeAssets: join(root, 'office'), version: '0.2.1-rc.2',
+    target: 'win-x64' as const, pnpmVersion: '11.28.5' }
   const payload = join(inputs.runtime, 'primary-runtime')
   const save = (path: string, text: string): void => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text) }
   save(join(payload, 'runtime.json'), JSON.stringify({ desktopVersion: inputs.version, platform: 'win32', arch: 'x64',
@@ -43,8 +43,8 @@ describe('development runtime reuse', () => {
 
   it('requires preparation when the release, package manager or payload identity changes', () => {
     const { inputs, payload, save } = fixture()
-    expect(canReuseDevelopmentRuntime({ ...inputs, version: '0.1.8' })).toBe(false)
-    expect(canReuseDevelopmentRuntime({ ...inputs, pnpmVersion: '11.8.0' })).toBe(false)
+    expect(canReuseDevelopmentRuntime({ ...inputs, version: '0.1.7-rc.2' })).toBe(false)
+    expect(canReuseDevelopmentRuntime({ ...inputs, pnpmVersion: '11.7.0' })).toBe(false)
     const metadata = JSON.parse(readFileSync(join(payload, 'runtime.json'), 'utf8')) as Record<string, unknown>
     save(join(payload, 'runtime.json'), JSON.stringify({ ...metadata, payloadDigest: '0'.repeat(64) }))
     expect(canReuseDevelopmentRuntime(inputs)).toBe(false)

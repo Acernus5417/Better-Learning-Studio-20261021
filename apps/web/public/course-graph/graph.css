@@ -1,0 +1,5 @@
+html,body,#graph { margin:0;width:100%;height:100%;overflow:hidden; }
+body { background:transparent; }
+#graph { position:relative;outline:none; }
+#graph canvas { touch-action:none; }
+body.is-grabbing,body.is-grabbing canvas { cursor:grabbing; }

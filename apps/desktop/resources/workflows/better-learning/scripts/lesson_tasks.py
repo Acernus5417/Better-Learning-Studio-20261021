@@ -550,11 +550,13 @@ def register_exercises(course, lesson, result, transaction=None):
 
 
 @validation_run
-def commit(course, lesson_id):
+def commit(course, lesson_id, preview=False):
     """Verify the main agent's chapter draft, assemble identity/links, then commit it."""
     from convert_materials import now
     data = read_json(course / LEDGER)
     lesson = next(l for l in data['lessons'] if l['id'] == lesson_id)
+    if preview and lesson['status'] == 'done':
+        return {'path': lesson['path'], 'text': inside(course, lesson['path']).read_text(encoding='utf-8')}
     if lesson['status'] == 'done':
         from quality_gates import enabled, check_retained
         if enabled(course):
@@ -583,7 +585,8 @@ def commit(course, lesson_id):
     try:
         from assemble_knowledge import require_knowledge
         require_knowledge(course)
-        if snapshot(course, definition)['input_hash'] != a['input_hash']:
+        current_snapshot = snapshot(course, definition)
+        if current_snapshot['input_hash'] != a['input_hash']:
             kind = 'STALE_INPUT'; raise ValueError('Knowledge/path/requirements changed')
         if (sha256(inside(course, a['task_manifest'])) != a['task_hash'] or any(
                 sha256(inside(course, p)) != h for p, h in a['input_hashes'].items())):
@@ -645,6 +648,10 @@ def commit(course, lesson_id):
         reviewed = require_lesson_reviews(course, lesson, a)
         if reviewed:
             a['reviewed_artifacts'] = reviewed
+        if preview:
+            return {'path': lesson['path'], 'text': documents[lesson['path']],
+                    'evidence': {'*': json.dumps({'goals': semantic(current_snapshot['path_excerpt']),
+                                                 'knowledge': {kid: semantic(body) for kid, body in current_snapshot['slices'].items()}}, ensure_ascii=False)}}
         tx = Transaction(course, course / '_工作区/事务记录.jsonl')
         # Only this chapter is committed; other documents keep their relation
         # regions until the Obsidian rebuild step, so the knowledge base is never
@@ -760,7 +767,7 @@ def check(course):
     return errors
 
 
-def record_link_relocation(course, target_moves):
+def record_link_relocation(course, target_moves, changed_paths=None):
     """Record orchestrator-only path/link edits and refresh both fingerprints.
 
     Byte hashes track the delivered file; semantic hashes track teaching content
@@ -778,6 +785,8 @@ def record_link_relocation(course, target_moves):
     for lesson in data['lessons']:
         if lesson['status'] != 'done': continue
         definition = definitions[lesson['id']]
+        if changed_paths is not None and definition['path'] not in changed_paths:
+            continue
         current = snapshot(course, definition)
         saved_units = lesson.get('teaching_units')
         if ((saved_units and units_fingerprint(current['teaching_units']) != units_fingerprint(saved_units)) or
@@ -804,7 +813,21 @@ def record_link_relocation(course, target_moves):
         state = read_json(cards)
         if state.get('status') == 'complete':
             from core_cards import inputs
-            state.update(inputs(course), cards_hash=sha256(course / '核心知识点.md'))
+            if changed_paths is None:
+                state.update(inputs(course), cards_hash=sha256(course / '核心知识点.md'))
+            else:
+                from core_cards import semantic_hash
+                for item in data['lessons']:
+                    if item['path'] in changed_paths and item.get('semantic_hash'):
+                        state.setdefault('lesson_hashes', {})[item['id']] = semantic_hash(course, item['path'])
+                knowledge_path = document(course, '知识内容.md')
+                if knowledge_path.relative_to(course).as_posix() in changed_paths:
+                    state['knowledge_hash'] = semantic_hash(course, knowledge_path.relative_to(course).as_posix())
+                for field, relative in [('knowledge_index_hash', '_工作区/知识索引.jsonl'), ('exercise_index_hash', '_工作区/练习索引.jsonl')]:
+                    if relative in changed_paths and inside(course, relative).is_file():
+                        state[field] = sha256(inside(course, relative))
+                if '核心知识点.md' in changed_paths:
+                    state['cards_hash'] = sha256(course / '核心知识点.md')
             write_json(cards, state)
     return {'refreshed': refreshed, 'moves': sorted(target_moves)}
 
@@ -824,6 +847,7 @@ def main():
     sub = p.add_subparsers(dest='command', required=True)
     q = sub.add_parser('prepare'); q.add_argument('--max-attempts', type=int, default=3)
     q = sub.add_parser('commit'); q.add_argument('--lesson', required=True)
+    q = sub.add_parser('presentation-candidate'); q.add_argument('--lesson', required=True)
     q = sub.add_parser('refresh')
     q.add_argument('--moves', help='可选：{旧路径: 新路径} 的课程相对 JSON，用于搬迁后的字面量改写')
     sub.add_parser('check'); sub.add_parser('status')
@@ -833,6 +857,7 @@ def main():
         with locked(course):
             if a.command == 'prepare': result = prepare(course, a.max_attempts)
             elif a.command == 'commit': result = commit(course, a.lesson)
+            elif a.command == 'presentation-candidate': result = commit(course, a.lesson, preview=True)
             elif a.command == 'refresh': result = refresh(course, a.moves)
             elif a.command == 'check': result = {'errors': check(course)}
             else:
@@ -845,7 +870,7 @@ def main():
                           'active': [{'commit': x['id'], 'lesson': x['lesson_id'], 'state': x['state']}
                                      for x in active_records(data)]}
         from quality_gates import enabled as bounded_enabled
-        if bounded_enabled(course):
+        if bounded_enabled(course) and a.command != 'presentation-candidate':
             report = '_工作区/讲义命令报告.json'
             write_json(course / report, result)
             print(json.dumps({'command': a.command, 'report': report,

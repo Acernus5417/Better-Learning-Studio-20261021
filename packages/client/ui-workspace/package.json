@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-workspace",
   "description": "Workspace picker plugin: one WorkspacePicker registered into the sidebar and empty-state workspace slots",
-  "version": "0.1.7-rc.2",
+  "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -23,11 +23,13 @@
       "default": "./lib/client.js"
     },
     "./src/*": "./src/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "dsh": {
     "client": {
       "inject": [
+        "@deepseek-ai/dsh-api-remote-access",
         "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-api-workspace-controller",
@@ -38,7 +40,11 @@
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-session",
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-resources",
+        "@deepseek-ai/dsh-client-ui-input-trigger",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
       ],
       "platform": "web"
     }
@@ -52,9 +58,11 @@
     "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-api-remotes": "workspace:*",
     "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
     "@deepseek-ai/dsh-api-session-controller": "workspace:*",
     "@deepseek-ai/dsh-api-workspace-controller": "workspace:*",
     "@deepseek-ai/dsh-client-connection": "workspace:*",
@@ -75,14 +83,31 @@
     "@deepseek-ai/dsh-typert-protocol": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-util-workspace-path": "workspace:*",
-    "@types/react": "~18.3.1",
     "clsx": "^2.0.0",
     "react": "^18.2.0",
-    "@deepseek-ai/dsh-client-shortcuts": "workspace:*"
+    "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
+    "@deepseek-ai/dsh-client-product-analytics": "workspace:*",
+    "@deepseek-ai/dsh-client-resources": "workspace:*",
+    "@deepseek-ai/dsh-util-course-document": "workspace:*",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.1",
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-markdown": "^6.3.4",
+    "@codemirror/language": "^6.11.3",
+    "cytoscape": "^3.33.1",
+    "@types/cytoscape": "^3.21.9",
+    "yaml": "^2.8.1",
+    "@deepseek-ai/dsh-client-ui-input-trigger": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-theme": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "workspace:*",
+    "react-dom": "^18.2.0",
+    "@deepseek-ai/dsh-util-crypto": "workspace:*"
   },
   "files": [
+    "locale/*.json",
     "lib/index.js",
-    "lib/client.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/client*.js",
+    "THIRD-PARTY-NOTICES.txt"
   ]
 }

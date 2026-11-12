@@ -19,7 +19,7 @@ describe('native visual batch', () => {
       },
       async (_parent, bootstrap) => {
         const index = bootstraps.push(bootstrap) - 1
-        return { id: `child-${index + 1}`, result: resolvers[index]!.promise,
+        return { childId: `child-${index + 1}`, result: resolvers[index]!.promise,
           dispose: async () => { disposed.push(`child-${index + 1}`) } } as never
       },
       (_parent, _course, outcomes) => {
@@ -78,7 +78,7 @@ describe('native visual batch', () => {
     await childStarting.promise
     const stop = service.stopCourse('/course')
     expect(service.hasActive('/course')).toBe(true)
-    publish.resolve({ id: 'child', result: Promise.resolve({ stopReason: 'completed' }),
+    publish.resolve({ childId: 'child', result: Promise.resolve({ stopReason: 'completed' }),
       dispose: async () => undefined } as never)
     await Promise.all([start, stop])
     expect(service.hasActive('/course')).toBe(false)

@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/studio-semantic-presentation/guide.md
+/:
+  en: 7e50228b7bb60601
+  zh: 81b0c4fa1519477b
+/upgrade-studio-semantic-presentation:
+  en: 138aeceb94b0c800
+  zh: 6a05f811c3ed947c
+/upgrade-studio-semantic-presentation/change:
+  en: 936bb1868d2710aa
+  zh: 4ab51b36fe8bc1f0
+/upgrade-studio-semantic-presentation/migration:
+  en: 9640e273e31c9282
+  zh: f11b5b99159a5496

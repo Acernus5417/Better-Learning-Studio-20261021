@@ -260,7 +260,7 @@ def add_relations(course, knowledge=None, mapping=None):
 
 
 @validation_run
-def finalize(course):
+def finalize(course, preview=False):
     from quality_gates import enabled, check_retained
     if enabled(course):
         check_retained(course, cards_path(course))
@@ -270,12 +270,16 @@ def finalize(course):
         raise ValueError('卡片输入已变化，请重新全局整理')
     relative = cards_path(course)
     entity_registry = Registry(course)
-    if is_v2(course):
+    if is_v2(course) and not preview:
         # Cards are still 'staged' here: render every callout in the staged phase,
         # otherwise the knowledge base would lack the K→KP edges that finalize checks.
         sync_course_relations(course, phase='staged')
         entity_registry = Registry(course)
     text = inside(course, relative).read_text(encoding='utf-8')
+    if preview and is_v2(course):
+        from obsidian_links import sync_candidate
+        documents, _ = sync_candidate(course, {relative: text}, phase='staged')
+        text = documents[relative]
     if is_v2(course):
         index = parse_sections(text, None, strict_registry=False)
         actual = sorted(section.id for section in index.sections.values() if section.kind == 'KP')
@@ -293,7 +297,8 @@ def finalize(course):
                for location in entity.locations):
             documents, graph = sync_candidate(course, {relative: text}, phase='staged')
             if documents.get(relative) != text:
-                atomic_text(inside(course, relative), documents[relative])
+                if not preview:
+                    atomic_text(inside(course, relative), documents[relative])
                 text = documents[relative]
         kp_targets = {target for (source, target) in ALLOWED if source == 'KP'}
         for entity in entity_registry.active_entities('KP', ('active', 'staged')):
@@ -306,6 +311,8 @@ def finalize(course):
         if problems: raise ValueError('; '.join(problems))
     if sorted(actual) != sorted(state['cards']):
         raise ValueError('卡片 block ID 与全局分配结果不一致')
+    if preview:
+        return {'path': relative, 'text': text, 'evidence': presentation_evidence(course)['evidence']}
     state.update(status='complete', cards_hash=sha256(inside(course, relative)))
     write_json(course / STATE, state)
     return {'complete': True, 'cards': len(actual)}
@@ -414,15 +421,40 @@ def flatten(course, apply=False):
             'next': '已写回并留审计' if apply else '这是预览；加 --apply 才会改写文件'}
 
 
+def presentation_evidence(course):
+    """Read only the assigned K and teaching sections for independent card typography review."""
+    from entity_sections import entity_section
+    from lesson_tasks import semantic
+    registry = Registry(course)
+    plan = read_json(course / '_工作区/核心卡片计划.json')
+    texts, evidence = {}, {}
+    for card in plan['cards']:
+        knowledge = []
+        for kid in card['knowledge_ids']:
+            fragments = []
+            for location in registry.entity(kid).locations:
+                if location.section_kind not in ('K', 'TEACH'):
+                    continue
+                if location.path not in texts:
+                    texts[location.path] = inside(course, location.path).read_text(encoding='utf-8')
+                fragments.append({'path': location.path, 'text': semantic(entity_section(
+                    texts[location.path], location.section_kind, location.section_id))})
+            knowledge.append({'id': kid, 'fragments': fragments})
+        evidence[card['card_id']] = json.dumps({'plan': card, 'knowledge': knowledge}, ensure_ascii=False)
+    return {'evidence': evidence}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__); p.add_argument('--course', required=True, type=Path)
-    p.add_argument('command', choices=['prepare', 'finalize', 'check', 'lint', 'flatten'])
+    p.add_argument('command', choices=['prepare', 'finalize', 'check', 'lint', 'flatten', 'presentation-evidence', 'presentation-candidate'])
     p.add_argument('--apply', action='store_true', help='flatten 时真正写回文件')
     a = p.parse_args(); course = a.course.resolve()
     from convert_materials import locked
     try:
         with locked(course):
             if a.command == 'check': result = {'errors': check(course)}
+            elif a.command == 'presentation-candidate': result = finalize(course, preview=True)
+            elif a.command == 'presentation-evidence': result = presentation_evidence(course)
             elif a.command == 'flatten': result = flatten(course, a.apply)
             else: result = globals()[a.command](course)
         print(json.dumps(result, ensure_ascii=False)); return 1 if result.get('errors') else 0

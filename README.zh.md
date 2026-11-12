@@ -1,98 +1,52 @@
-# DeepSeek Harness
+# Better Learning Studio
 
 [English](README.md) | 中文
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+Better Learning Studio 是一个用于建课和自学的桌面工作台。可以用学习资料创建课程，也可以导入已有的 Markdown 课程文件夹，在应用里阅读和编辑讲义、查看文档关系、保存笔记。选中文段后，学习助手可以结合课程上下文讲解，并在对话内展示交互 SVG 和分步演示。
 
-它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+## 开发接手
 
-文档：[https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+准备 Windows x64、Git 2.26 或更新版本、Node.js 24 x64 和 pnpm 11.28.5。在 PowerShell 中克隆 Studio 开发分支。
 
-## 开发者预览
+```powershell
+git clone --branch codex/basic-course-workbench https://github.com/Acernus5417/Better-Learning-Studio-20261021.git better-learning-studio
+cd better-learning-studio
+```
 
-DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
+如果收到的是源码文件夹，在包含 `package.json`、`pnpm-lock.yaml` 和 `start.bat` 的根目录打开 PowerShell。依赖在各自的电脑上安装。需要共享示例课程时，单独发课程文件夹，由队友通过「导入课程」打开。
 
-运行本项目前，请阅读[安全说明](SAFETY.zh.md)。
+## Windows 快速启动
+
+在仓库根目录安装锁定版本的依赖，再执行首次构建和启动。
+
+```powershell
+pnpm install --frozen-lockfile
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start-studio.ps1
+```
+
+首次启动会构建 Studio，并可能下载 Electron 和其他运行时组件。看到 Studio 窗口后，可以新建或导入课程。使用 AI 课程生成或学习助手前，在应用内配置模型服务。
+
+构建成功后，日常双击 [`start.bat`](start.bat) 启动已有产物。修改应用源码后，重新运行 `start-studio.ps1` 构建。启动日志在 `.desktop-cache/startup-*.log`。
+
+## 从哪里继续
+
+- [`apps/desktop`](apps/desktop) 存放桌面壳和随应用分发的[内置学习技能](apps/desktop/resources/skills)。
+- [`apps/desktop-host`](apps/desktop-host) 存放本地课程 API 和学习助手工具。
+- [`packages/client/ui-workspace`](packages/client/ui-workspace) 存放课程工作台界面。
+- 详见[课程工作台指南](docs/studio-course-workbench.zh.md)、[开发指南](docs/development.zh.md)和[贡献指南](CONTRIBUTING.zh.md)。
+
+Windows 上的课程保存在「文档」目录的 `Better Learning Studio/course` 下。启动脚本使用 `%APPDATA%\BetterLearningStudio-DSH\dsh` 存放模型配置和会话数据。队友各自配置自己的凭据。
 
 <a id="run"></a>
 
-## 运行
+## DeepSeek Harness Web 界面
 
-### 通过 `npm` 运行
-
-安装 `Node.js`，然后运行：
-
-```sh
-npx @deepseek-ai/dsh web
-```
-
-该命令默认会在 `http://127.0.0.1:3080` 启动 Web UI，本机启动时还会用默认浏览器打开页面。通过 SSH 启动时只打印宿主机 URL，因为本地转发地址由 SSH 客户端或编辑器持有。传入 `--no-open` 可仅运行服务器而不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.zh.md)。
+Studio 基于 DeepSeek Harness。底层 Harness 的使用说明见[安全说明](SAFETY.zh.md)和 [Web 界面指南](docs/user/guide/index.zh.md)。
 
 <a id="run-from-source"></a>
 
-### 从源码运行
-
-如需从仓库源码运行：
-
-```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install
-pnpm run build
-pnpm dsh web
-```
-
-`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
-
-## 社区与支持
-
-- 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，便于被发现。
-- 欢迎加入 DeepSeek Harness 企微群：扫码添加企微小助手并填写入群问卷，完成后小助手会邀请你入群。
-
-<table>
-  <thead>
-    <tr>
-      <th align="center">企微小助手</th>
-      <th align="center">入群问卷</th>
-      <th align="center">微信公众号</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-assistant.png" alt="DeepSeek Harness 企微小助手二维码" width="180" height="180"></td>
-      <td align="center"><a href="https://trtgsjkv6r.feishu.cn/share/base/form/shrcnIt5twSVdLGD52KJBckGCgg"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-survey.png" alt="DeepSeek Harness 入群问卷二维码" width="180" height="180"></a></td>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wechat-official-account.png" alt="DeepSeek Harness 团队微信公众号二维码" width="180" height="180"></td>
-    </tr>
-  </tbody>
-</table>
-
-## 参与贡献
-
-参见 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
-
-## 开发
-
-请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。
-
-`pnpm run dev:web` 会在一个终端里完成构建、启动，并在源码修改时重建 client bundle；`make help` 列出 Web 与 Desktop 对应的 Make target。完整表格见开发指南的「应用命令」一节。
-
-面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
-
-## 引用
-
-```bibtex
-@misc{deepseek-harness2026,
-  title={DeepSeek Harness: Everything is a Plugin},
-  author={DeepSeek-AI},
-  year={2026},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/deepseek-ai/deepseek-harness}},
-}
-```
+要在当前仓库构建并启动 Harness Web 界面，安装依赖后运行 `pnpm run dev:web`。
 
 ## 许可证
 
-[MIT](LICENSE)
-
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE)。依赖许可证见[第三方许可声明](THIRD_PARTY_NOTICES.md)。

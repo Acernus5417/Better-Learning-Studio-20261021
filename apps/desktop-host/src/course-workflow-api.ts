@@ -8,7 +8,6 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm'
-import { parentAgentOptionsForDelegation } from '@deepseek-ai/dsh-subagent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { installPrimaryRuntime } from '@deepseek-ai/dsh-tool-workspace-dependencies'
 import { CourseWorkflow, type CourseStage } from './course-workflow.ts'
@@ -23,6 +22,8 @@ import { recoverStoppedCourseAttempts } from './course-transcription-recovery.ts
 import { CourseWatchdogService, type CourseWatchdogPolicy } from './course-watchdog-service.ts'
 import { humanFolderMentions, importCourseAttachments, refreshCourseInventory } from './course-attachments.ts'
 import { prepareOfficeRenders } from './course-office-renders.ts'
+import { CoursePresentationService, enableCoursePresentation } from './course-presentation.ts'
+import { installCourseVisualChildPolicy, startCourseVisualChild } from './course-visual-child.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -143,6 +144,14 @@ export async function resolveAgentCourse(
 export async function createAgentCourse(
   workspaces: readonly { readonly id: string; readonly path: string }[], cwd: string, name: string,
 ): Promise<string> {
+  // The catalog already allocated this course's dedicated Workspace. Keep
+  // older tool callers idempotent without nesting a second course under it.
+  try {
+    const manifest: unknown = JSON.parse(await readFile(join(cwd, '.studio', 'course.json'), 'utf8'))
+    if (record(manifest) && typeof manifest.id === 'string' && typeof manifest.workspaceId === 'string') {
+      return await resolveAgentCourse(workspaces, cwd, '.')
+    }
+  } catch (error) { if (!record(error) || error.code !== 'ENOENT') throw error }
   if (name.trim() !== name || name.length < 1 || name.length > 80 || name.endsWith('.')
     || /[<>:"/\\|?*\u0000-\u001f]/u.test(name)
     || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(name) || name === '_工作区') {
@@ -224,6 +233,9 @@ export async function installCourseWorkflowApi(
     || ctx.get('sessionProjections') === undefined || ctx.get('attachments') === undefined) {
     throw new Error('course workflow: Workspace, Connection, Tools, Agents, Subagents, attachments, and projections are required')
   }
+  installCourseVisualChildPolicy(ctx)
+  const presentations = new CoursePresentationService(ctx)
+  ctx.effect(() => async () => { await presentations.stop() })
   let runtimePromise: Promise<CourseVerifierRuntime> | undefined
   const runtime = (): Promise<CourseVerifierRuntime> => runtimePromise ??= installPrimaryRuntime(source, installRoot)
     .then(paths => ({ python: paths.python, scripts,
@@ -243,12 +255,7 @@ export async function installCourseWorkflowApi(
   }
   const batches = new CourseTranscriptionBatchService(
     async (course, args) => runCourseMaterials(await runtime(), course, args),
-    (parent, bootstrap, signal) => ctx.subagents.start('spawn', {
-      parent, signal, prompt: [{ type: 'text', text: bootstrap }],
-      agentOptions: parentAgentOptionsForDelegation(parent),
-      toolFilter: { allow: ['read', 'read_image', 'write', 'edit'] }, maxDepth: 1,
-      persona: '你是 Better Learning Studio 的独立视觉转写成员。只按任务文件和策略看图、忠实转写并写入分配的暂存文件；不教学、不猜写、不读取其他课程资料。只回短状态。',
-    }),
+    (parent, bootstrap, signal) => startCourseVisualChild(ctx, parent, bootstrap, signal, 'better-learning-vision'),
     async (parent, course, outcomes) => {
       const unavailable = outcomes.some(item => item.outcome === 'vision_unavailable')
       if (unavailable) {
@@ -272,12 +279,7 @@ export async function installCourseWorkflowApi(
   isBatchActive = course => batches.hasActive(course)
   const probes = new CourseVisionProbeService(
     async (course, args) => runCourseMaterials(await runtime(), course, args),
-    (parent, prompt, signal) => ctx.subagents.start('spawn', {
-      parent, signal, prompt: [{ type: 'text', text: prompt }],
-      agentOptions: parentAgentOptionsForDelegation(parent),
-      toolFilter: { allow: ['read_image', 'write'] }, maxDepth: 1,
-      persona: '你是 Better Learning Studio 的独立视觉探针成员。严格按当前提示实际读图，只写指定 JSON；不读取其他文件、脚本或历史答案。只回简短状态。',
-    }),
+    (parent, prompt, signal) => startCourseVisualChild(ctx, parent, prompt, signal, 'better-learning-probe'),
   )
   ctx.effect(() => async () => { await batches.stop() })
   for (const course of await discoverSavedCourses(ctx.workspaceRegistry.list())) {
@@ -336,7 +338,35 @@ export async function installCourseWorkflowApi(
           }
           args.push('--lesson', lesson)
         }
-        return runCourseScript(await runtime(), course, selected.script, args)
+        const installed = await runtime()
+        if (step === 'lesson-commit' || step === 'cards-finalize') {
+          if (parent === undefined || signal === undefined) throw new Error('course workflow: semantic presentation requires a live logged model session')
+          let path: string, text: string
+          let rawEvidence: unknown
+          const evidence: Record<string, string> = {}
+          if (step === 'lesson-commit') {
+            if (lesson === undefined) throw new Error('course workflow: lesson candidate requires its identity')
+            const candidate = await runCourseScript(installed, course, 'lesson_tasks.py', ['presentation-candidate', '--lesson', lesson])
+            if (typeof candidate.path !== 'string' || typeof candidate.text !== 'string') throw new Error('course workflow: invalid lesson candidate')
+            path = candidate.path; text = candidate.text; rawEvidence = candidate.evidence
+          } else {
+            const linted = await runCourseScript(installed, course, 'core_cards.py', ['lint'])
+            if (typeof linted.cards !== 'string') throw new Error('course workflow: missing cards document')
+            const candidate = await runCourseScript(installed, course, 'core_cards.py', ['presentation-candidate'])
+            if (typeof candidate.path !== 'string' || typeof candidate.text !== 'string') throw new Error('course workflow: invalid cards candidate')
+            path = candidate.path; text = candidate.text; rawEvidence = candidate.evidence
+          }
+          if (rawEvidence !== undefined) {
+            if (!record(rawEvidence)) throw new Error('course workflow: invalid presentation evidence')
+            for (const [unit, value] of Object.entries(rawEvidence)) {
+              if (typeof value !== 'string') throw new Error('course workflow: invalid evidence text')
+              evidence[unit] = value
+            }
+          }
+          return presentations.publish(course, { path, text, evidence, kind: step === 'lesson-commit' ? 'lesson' : 'cards' }, parent, signal,
+            () => runCourseScript(installed, course, selected.script, args))
+        }
+        return runCourseScript(installed, course, selected.script, args)
       }
       case 'initialize': {
         if (await cursor.inspect() !== null) throw new Error('course workflow: this course already has a cursor')
@@ -347,6 +377,7 @@ export async function installCourseWorkflowApi(
           if (!record(error) || error.code !== 'ENOENT') throw error
         }
         const plan = await inspectCoursePlan(await runtime(), course)
+        await enableCoursePresentation(course)
         return { plan, state: await cursor.initialize() }
       }
       case 'propose': {
@@ -462,6 +493,7 @@ export async function installCourseWorkflowApi(
       }
       case 'watchdog': return watchdogs.check(course)
       case 'pause': {
+        await presentations.stop(course)
         if (reason === undefined || reason.trim() === '') throw new Error('course workflow: reason is required')
         const result = await cursor.pause(reason)
         await batches.stopCourse(course)
@@ -532,7 +564,7 @@ export async function installCourseWorkflowApi(
         if (args.course === undefined) throw new Error('course workflow: new course name is required')
         const created = await createAgentCourse(ctx.workspaceRegistry.list(), cwd, args.course)
         let initialization: unknown
-        try { initialization = await perform(created, 'initialize') }
+        try { initialization = await workflow(created).inspect() ?? await perform(created, 'initialize') }
         catch (error) {
           return { result: JSON.stringify({ course: args.course,
             initializationError: error instanceof Error ? error.message : String(error),

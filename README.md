@@ -1,77 +1,52 @@
-# DeepSeek Harness
+# Better Learning Studio
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+Better Learning Studio is a desktop workspace for building and studying courses. Create a course from learning materials or import a Markdown course folder, then read and edit lessons, explore links between documents, and save notes. The learning assistant can explain a selected passage in context and present interactive SVG diagrams and step-by-step demonstrations in the conversation.
 
-It is built on an **everything-is-a-plugin** architecture and powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
+## Developer handoff
 
-Documentation: [https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+Use Windows x64, Git 2.26 or later, Node.js 24 x64, and pnpm 11.28.5. Clone the Studio development branch from PowerShell.
 
-## Developer preview
-
-DeepSeek Harness is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
-
-Review the [safety notice](SAFETY.md) before running the project.
-
-## Run
-
-### Run from `npm`
-
-Install `Node.js`, then run:
-
-```sh
-npx @deepseek-ai/dsh web
+```powershell
+git clone --branch codex/basic-course-workbench https://github.com/Acernus5417/Better-Learning-Studio-20261021.git better-learning-studio
+cd better-learning-studio
 ```
 
-The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).
+If you received a source folder, open PowerShell in its root, where `package.json`, `pnpm-lock.yaml`, and `start.bat` are located. Install dependencies in your own checkout. Share any sample course separately so your teammate can open it with **Import course**.
 
-### Run from source
+## Quick start on Windows
 
-To run from a repository checkout:
+From the repository root, install the locked dependencies and launch the first build.
 
-```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install
-pnpm run build
-pnpm dsh web
+```powershell
+pnpm install --frozen-lockfile
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start-studio.ps1
 ```
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
+The first launch builds Studio and may download Electron and other runtime components. When the Studio window opens, create or import a course. Configure a model provider before using AI course generation or the learning assistant.
 
-## Community and support
+After a successful build, double-click [`start.bat`](start.bat) for daily use. It starts the existing build. After changing application source, rerun `start-studio.ps1` to rebuild. Startup logs are in `.desktop-cache/startup-*.log`.
 
-- Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
-- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
+## Where to continue
 
-## Contributing
+- [`apps/desktop`](apps/desktop) owns the desktop shell and bundled [learning skills](apps/desktop/resources/skills).
+- [`apps/desktop-host`](apps/desktop-host) owns the local course API and learning assistant tools.
+- [`packages/client/ui-workspace`](packages/client/ui-workspace) owns the course workbench UI.
+- See the [course workbench guide](docs/studio-course-workbench.md), [development guide](docs/development.md), and [contribution guide](CONTRIBUTING.md).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Windows stores courses under `Documents/Better Learning Studio/course` and the launcher's model configuration and conversation data under `%APPDATA%\BetterLearningStudio-DSH\dsh`. Each teammate configures their own credentials.
 
-## Development
+<a id="run"></a>
 
-Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md).
+## DeepSeek Harness Web UI
 
-`pnpm run dev:web` builds, serves, and rebuilds client bundles on source edits in one terminal, and `make help` lists the matching Make targets for Web and Desktop; the guide's application commands section owns the full table.
+Studio is built on DeepSeek Harness. See the [safety notice](SAFETY.md) and [Web UI guide](docs/user/guide/index.md) for the underlying Harness.
 
-For agents, follow [AGENTS.md](AGENTS.md).
+<a id="run-from-source"></a>
 
-## Citation
-
-```bibtex
-@misc{deepseek-harness2026,
-  title={DeepSeek Harness: Everything is a Plugin},
-  author={DeepSeek-AI},
-  year={2026},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/deepseek-ai/deepseek-harness}},
-}
-```
+To build and start the Harness Web UI from this checkout, use `pnpm run dev:web` after installing dependencies.
 
 ## License
 
-[MIT](LICENSE)
-
-Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for dependency licenses.

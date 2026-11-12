@@ -610,6 +610,31 @@ class AssemblyTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_card_presentation_reads_assigned_evidence_without_modifying_documents(self):
+        from core_cards import presentation_evidence
+        before = {str(path.relative_to(self.course)): path.read_bytes()
+                  for path in self.course.rglob('*.md')}
+        result = presentation_evidence(self.course)
+        card = json.loads(result['evidence']['KP-03-02-01'])
+        self.assertIn('K-03-04', [row['id'] for row in card['knowledge']])
+        self.assertTrue(any('特征值' in fragment['text']
+                            for row in card['knowledge'] for fragment in row['fragments']))
+        self.assertEqual(before, {str(path.relative_to(self.course)): path.read_bytes()
+                                  for path in self.course.rglob('*.md')})
+
+    def test_card_candidate_validates_before_models_and_matches_the_later_commit(self):
+        from core_cards import finalize
+        from unittest.mock import patch
+        before = {str(path.relative_to(self.course)): path.read_bytes()
+                  for path in self.course.rglob('*') if path.is_file()}
+        with patch('core_cards.require_lessons'), patch('core_cards.inputs', return_value={}):
+            candidate = finalize(self.course, preview=True)
+            self.assertEqual(before, {str(path.relative_to(self.course)): path.read_bytes()
+                                      for path in self.course.rglob('*') if path.is_file()})
+            result = finalize(self.course)
+        self.assertTrue(result['complete'])
+        self.assertEqual(candidate['text'], (self.course / candidate['path']).read_text(encoding='utf-8'))
+
     def test_assembler_inserts_boundaries_anchors_and_exercises(self):
         from lesson_tasks import assemble_lesson_document
         folder = '_工作区/讲义尝试/L-test'

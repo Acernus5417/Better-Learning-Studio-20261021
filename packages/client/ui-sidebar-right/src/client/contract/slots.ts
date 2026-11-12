@@ -1,7 +1,8 @@
 /**
  * The right Sidebar's extension seats and its copy namespace.
  *
- * Four seats, each with a different reason to exist:
+ * Session and global-panel extension seats:
+ * - `rightbar.panel` dispatches root-scoped content by the selected main-panel id.
  * - `sidebar.right.pane.tab` is how a tab type contributes a body. It is keyed by
  *   the type definition's `id`, so adding a type is a registration, never an
  *   edit here. The key domain stays the open string space because a tab type may
@@ -39,6 +40,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface SlotMap {
+    /**
+     * Optional global-panel content, keyed by its MainPanelId. The registrant owns
+     * its presentation through layout actions; no Session is supplied or selected.
+     */
+    'rightbar.panel': { kind: 'keyed'; scope: 'root'; owner: RightbarOwnerProps }
     /** Session content selected by the root-scoped right Sidebar controller. */
     'rightbar.session': {
       kind: 'single'

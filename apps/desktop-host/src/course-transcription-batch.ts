@@ -1,7 +1,7 @@
 /** Host-owned one-batch visual transcription dispatch and collection. */
 
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SubagentRun } from '@deepseek-ai/dsh-subagent'
+import type { SubagentActivation } from '@deepseek-ai/dsh-subagent'
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -12,7 +12,7 @@ export interface MaterialsCommand {
 }
 
 export interface BatchChildStarter {
-  (parent: Agent, bootstrap: string, signal: AbortSignal): Promise<SubagentRun>
+  (parent: Agent, bootstrap: string, signal: AbortSignal): Promise<SubagentActivation>
 }
 
 export interface CourseBatchResult {
@@ -93,7 +93,7 @@ export class CourseTranscriptionBatchService {
         batch.controllers.add(controller)
         const abortStartup = (): void => { controller.abort(signal.reason) }
         signal.addEventListener('abort', abortStartup, { once: true })
-        let run: SubagentRun
+        let run: SubagentActivation
         try { run = await this.startChild(parent, ticket.bootstrap, controller.signal) }
         catch (error) {
           batch.controllers.delete(controller)
@@ -107,7 +107,7 @@ export class CourseTranscriptionBatchService {
         } finally { signal.removeEventListener('abort', abortStartup) }
         if (Boolean(batch.cancelled)) controller.abort()
         try {
-          await this.command(course, ['mark-running', '--attempt', ticket.attempt, '--agent-id', run.id])
+          await this.command(course, ['mark-running', '--attempt', ticket.attempt, '--agent-id', run.childId])
         } catch (error) {
           controller.abort(error)
           try { await run.dispose() }
@@ -116,7 +116,7 @@ export class CourseTranscriptionBatchService {
           failedToStart.push(`${ticket.attempt}: member started but could not be registered; inspect the reserved attempt`)
           return
         }
-        started.push({ attempt: ticket.attempt, childId: run.id })
+        started.push({ attempt: ticket.attempt, childId: run.childId })
         batch.settlements.push(this.settle(course, ticket.attempt, run, controller))
       }))
       if (batch.settlements.length === 0) {
@@ -139,18 +139,18 @@ export class CourseTranscriptionBatchService {
   }
 
   private async settle(
-    course: string, attempt: string, run: SubagentRun, controller: AbortController,
+    course: string, attempt: string, run: SubagentActivation, controller: AbortController,
   ): Promise<Settlement> {
     try {
       const result = await run.result
       await run.dispose()
       if (result.stopReason === 'completed') {
-        const collected = await this.command(course, ['collect', '--attempt', attempt, '--stopped-agent-id', run.id])
+        const collected = await this.command(course, ['collect', '--attempt', attempt, '--stopped-agent-id', run.childId])
         return { attempt, outcome: collected.capability_blocked === true ? 'vision_unavailable'
           : collected.state === 'committed' ? 'complete' : 'needs_review' }
       }
       await this.command(course, ['fail-attempt', '--attempt', attempt, '--kind', 'TEMP_TOOL_FAILURE',
-        '--stopped-agent-id', run.id])
+        '--stopped-agent-id', run.childId])
       return { attempt, outcome: result.stopReason }
     } catch (error) {
       try { await run.dispose() }

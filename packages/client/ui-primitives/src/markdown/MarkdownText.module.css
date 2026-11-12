@@ -453,8 +453,14 @@
   vertical-align: middle;
   cursor: zoom-in;
 }
-.imageButton .image { max-width: min(100%, 640px); max-height: 360px; }
-.imageButton:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 3px; }
+.imageButton .image {
+  max-width: min(100%, 640px);
+  max-height: 360px;
+}
+.imageButton:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 3px;
+}
 .previewName {
   display: block;
   margin-top: 8px;
@@ -464,4 +470,66 @@
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
+}
+
+/* Studio's reading, generation and tutor share one CJK typography scale.
+   GFM table/heading treatments follow github-markdown-css, using theme tokens. */
+:global(html[data-studio-markdown]) .markdown {
+  font-family: var(--dsw-font-family);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+:global(html[data-studio-markdown]) .markdown:not(.compact) {
+  font-size: calc(var(--dsh-content-font-size, 14px) + 2px);
+  line-height: 1.8;
+}
+:global(html[data-studio-markdown]) .markdown:not(.compact) :is(h1, h2, h3, h4, h5, h6) {
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-block: 1.6em 0.7em;
+}
+:global(html[data-studio-markdown]) .markdown:not(.compact) h1 {
+  font-size: 1.85em;
+}
+:global(html[data-studio-markdown]) .markdown:not(.compact) h2 {
+  font-size: 1.4em;
+  padding-bottom: 0.3em;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+:global(html[data-studio-markdown]) .markdown:not(.compact) h3 {
+  font-size: 1.2em;
+}
+:global(html[data-studio-markdown]) .markdown strong {
+  font-weight: 500;
+}
+:global(html[data-studio-markdown]) .markdown p {
+  margin-block: 1em;
+}
+:global(html[data-studio-markdown]) .compact {
+  line-height: 1.8;
+}
+:global(html[data-studio-markdown='on']) .tableScroll th,
+:global(html[data-studio-markdown='on']) .tableScroll td {
+  padding: 8px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+}
+:global(html[data-studio-markdown='on']) .tableScroll tbody tr:nth-child(even) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+:global(html[data-studio-markdown='on']) .markdown blockquote {
+  border-inline-start: 3px solid var(--dsw-alias-state-business-primary);
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  padding: 12px 18px;
+  margin-inline: 0;
+}
+:global(html[data-studio-markdown='off']) .markdown:not(.compact) :is(h1, h2, h3, h4, h5, h6) {
+  font-size: 1.15em;
+  border: 0;
+  margin-block: 1.2em 0.5em;
+}
+:global(html[data-studio-markdown='off']) .markdown :not(pre) > code {
+  background: transparent;
+  border: 0;
 }
